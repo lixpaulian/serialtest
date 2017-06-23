@@ -1,0 +1,25 @@
+{
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "900ea1df-4935-4f9b-bd3a-bb57426075a7++505",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
+    "900ea1df-4935-4f9b-bd3a-bb57426075a7++505" : {
+
+    }
+  },
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "900ea1df-4935-4f9b-bd3a-bb57426075a7++505" : 9223372036854775807
+  },
+  "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "6693F219-D2D7-4C13-B53E-58990E5057D1",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "900ea1df-4935-4f9b-bd3a-bb57426075a7++505" : "Projects\/"
+  },
+  "DVTSourceControlWorkspaceBlueprintNameKey" : "serialtest",
+  "DVTSourceControlWorkspaceBlueprintVersion" : 204,
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "serialtest\/serialtest.xcodeproj",
+  "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "http:\/\/frodo\/svn\/Caddon",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Subversion",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "900ea1df-4935-4f9b-bd3a-bb57426075a7++505"
+    }
+  ]
+}
