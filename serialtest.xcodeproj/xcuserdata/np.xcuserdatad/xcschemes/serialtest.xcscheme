@@ -63,7 +63,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-D /dev/tty.usbserial-AK0555H1 -b 921600"
+            argument = "-D /dev/tty.usbserial-FTG7KY7J -b 921600"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

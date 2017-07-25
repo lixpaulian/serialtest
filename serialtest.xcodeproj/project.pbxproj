@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		EC4F764C1ECC9C740000C9FF /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = EC4F764B1ECC9C740000C9FF /* main.c */; };
+		ECC97BCB1F20AF0800496451 /* frame-parser.c in Sources */ = {isa = PBXBuildFile; fileRef = ECC97BC91F20AF0800496451 /* frame-parser.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,6 +26,8 @@
 /* Begin PBXFileReference section */
 		EC4F76481ECC9C740000C9FF /* serialtest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = serialtest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC4F764B1ECC9C740000C9FF /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		ECC97BC91F20AF0800496451 /* frame-parser.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "frame-parser.c"; sourceTree = "<group>"; };
+		ECC97BCA1F20AF0800496451 /* frame-parser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "frame-parser.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +61,8 @@
 			isa = PBXGroup;
 			children = (
 				EC4F764B1ECC9C740000C9FF /* main.c */,
+				ECC97BC91F20AF0800496451 /* frame-parser.c */,
+				ECC97BCA1F20AF0800496451 /* frame-parser.h */,
 			);
 			path = serialtest;
 			sourceTree = "<group>";
@@ -119,6 +124,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ECC97BCB1F20AF0800496451 /* frame-parser.c in Sources */,
 				EC4F764C1ECC9C740000C9FF /* main.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -248,6 +254,7 @@
 				EC4F76511ECC9C740000C9FF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

@@ -1,21 +1,28 @@
 {
-  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "900ea1df-4935-4f9b-bd3a-bb57426075a7++505",
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "861466809B3E1B8F577A007D65E45758380827F7",
   "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
     "900ea1df-4935-4f9b-bd3a-bb57426075a7++505" : {
 
     }
   },
   "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "861466809B3E1B8F577A007D65E45758380827F7" : 9223372036854775807,
     "900ea1df-4935-4f9b-bd3a-bb57426075a7++505" : 9223372036854775807
   },
   "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "6693F219-D2D7-4C13-B53E-58990E5057D1",
   "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
-    "900ea1df-4935-4f9b-bd3a-bb57426075a7++505" : "Projects\/"
+    "861466809B3E1B8F577A007D65E45758380827F7" : "serialtest\/",
+    "900ea1df-4935-4f9b-bd3a-bb57426075a7++505" : ""
   },
   "DVTSourceControlWorkspaceBlueprintNameKey" : "serialtest",
   "DVTSourceControlWorkspaceBlueprintVersion" : 204,
-  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "serialtest\/serialtest.xcodeproj",
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "serialtest.xcodeproj",
   "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/lixpaulian\/serialtest.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "861466809B3E1B8F577A007D65E45758380827F7"
+    },
     {
       "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "http:\/\/frodo\/svn\/Caddon",
       "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Subversion",
