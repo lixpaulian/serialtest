@@ -92,7 +92,7 @@ parse_result_t parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
     return result;
 }
 
-//  @brief Print an 0xf0/0xf1 radio frame to the console.
+//  @brief Print an 0xf0/0xf1 frame to the console.
 //  @param buff: buffer containing the frame.
 //  @param len: length of the frame.
 
