@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <termios.h>
 #include <fcntl.h>
+#include <sys/time.h>
 
 #include "frame-parser.h"
 
@@ -43,11 +44,12 @@
 
 static void quit (void);
 static int handle_serial_line (int fd);
+static int counter = 0;
 
 
 // Main entry point.
 
-int main(int argc, char * argv[])
+int main (int argc, char * argv[])
 {
     int ch;
     char *port = NULL;
@@ -55,9 +57,9 @@ int main(int argc, char * argv[])
     struct termios options;
     int baudRate = 115200;
     
-    signal(SIGINT, (void *) quit);	/* trap ctrl-c calls here */
+    signal (SIGINT, (void *) quit);	/* trap ctrl-c calls here */
     
-    while ((ch = getopt(argc, argv, "hvD:b:")) != -1)
+    while ((ch = getopt (argc, argv, "hvD:b:")) != -1)
     {
         switch (ch)
         {
@@ -70,59 +72,96 @@ int main(int argc, char * argv[])
                 break;
                 
             case 'v':
-                fprintf(stdout, "Serial Test, version %d.%d, compiled on %s, %s\n",
+                fprintf (stdout, "Serial Test, version %d.%d, compiled on %s, %s\n",
                         VERSION_MAJOR, VERSION_MINOR, __DATE__, __TIME__);
-                exit(EXIT_SUCCESS);
+                exit (EXIT_SUCCESS);
                 break;
                 
             case 'h':
             default:
-                fprintf(stdout, "Usage: sertest -D <tty>\n");
-                exit(EXIT_SUCCESS);
+                fprintf (stdout, "Usage: sertest -D <tty>\n");
+                exit (EXIT_SUCCESS);
                 break;
         }
     }
     
     if (port == NULL)
     {
-        fprintf(stdout, "Missing device (-D option)\n");
-        exit(EXIT_FAILURE);
+        fprintf (stdout, "Missing device (-D option)\n");
+        exit (EXIT_FAILURE);
     }
     
     fd = open(port, O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd != -1)
     {
-        fcntl(fd, F_SETFL, 0);
-        tcgetattr(fd, &options);
-        cfsetispeed(&options, baudRate);
-        cfsetospeed(&options, baudRate);
+        fcntl (fd, F_SETFL, 0);
+        tcgetattr (fd, &options);
+        cfsetispeed (&options, baudRate);
+        cfsetospeed (&options, baudRate);
         options.c_cflag |= (CLOCAL | CREAD);
         options.c_oflag &= ~OPOST;
         options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
         
         options.c_cc[VTIME] = 0;
         options.c_cc[VMIN] = 1;
-        if (tcsetattr(fd, TCSANOW, &options) < 0)
+        if (tcsetattr (fd, TCSANOW, &options) < 0)
         {
-            fprintf(stdout, "Failed to set new parameters on the serial port\n");
-            exit(EXIT_FAILURE);
+            fprintf (stdout, "Failed to set new parameters on the serial port\n");
+            exit (EXIT_FAILURE);
         }
     }
     else
     {
-        fprintf(stdout, "Failed to open serial device %s\n", port);
-        exit(EXIT_FAILURE);
+        fprintf (stdout, "Failed to open serial device %s\n", port);
+        exit (EXIT_FAILURE);
     }
 
-    while (handle_serial_line (fd) == 0)
-        ;
+    // prepare for multiple input sources
+    int res;
+    fd_set readfs;
+    struct timeval timeout;
+    int maxfd = fd + 1;
+    uint8_t send_buffer[220];
+    
+    send_buffer[0] = 0xf0;
+    send_buffer[1] = 0;
+    
+    do
+    {
+        FD_SET (fd, &readfs);
+        FD_SET (fileno (stdin), &readfs);
+        timeout.tv_usec = 5000;     // 5 ms
+        timeout.tv_sec = 0;
+
+        res = select (maxfd, &readfs, NULL, NULL, &timeout);
+        if (res == 0)
+        {
+            // timeout, send a frame
+            send_buffer[1] += 1;
+            if (send_buffer[1] == 0xf0)
+                send_buffer[1] = 0;
+            send_buffer[109] = 0xf1;
+            write (fd, send_buffer, 110);
+        }
+        else if (FD_ISSET(fd, &readfs))
+        {
+            // got a frame from serial
+            res = handle_serial_line (fd);
+        }
+        else if (FD_ISSET(fileno (stdin), &readfs))
+        {
+            // got a char from the user, just echo it back for now
+            putchar (getchar ());
+            res = 0;
+        }
+    } while (res == 0);
     
     return EXIT_SUCCESS;
 }
 
 // @brief   Handle serial port input frames.
-// @param   fd: serial handle
-// @retval  0 if successfull, 1 if serial port error.
+// @param   fd: serial file descriptor
+// @retval  0 if successful, 1 if serial port error.
 
 static int handle_serial_line (int fd)
 {
@@ -149,6 +188,7 @@ static int handle_serial_line (int fd)
         while ((result = parse_f0_f1_frames (&begin, &end)) == FRAME_OK)
         {
             print_f0_f1_frames (begin, end - begin + 1);
+            counter++;
             
             if (end < buff + res + offset) // whole buffer done?
             {
@@ -188,5 +228,6 @@ static int handle_serial_line (int fd)
 
 static void quit (void)
 {
-    exit(1);
+    fprintf (stdout, "Total frames received: %d\n", counter);
+    exit (1);
 }
