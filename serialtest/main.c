@@ -34,63 +34,39 @@
 #include <stdlib.h>
 #include <termios.h>
 #include <fcntl.h>
-#include <sys/time.h>
+#include <pthread.h>
 
 #include "frame-parser.h"
+#include "cli.h"
+#include "utils.h"
 
-#define VERSION_MAJOR 0
-#define VERSION_MINOR 4
 
 #define SERIAL_DEBUG 0
 
-typedef enum
-{
-    GET_DUMP_STATE,
-    SET_DUMP_STATE
-} dump_request_t;
-
 static int counter = 0;
 
-static void
+void
 quit (void);
 
 static int
 handle_serial_line (int fd, bool print);
 
-static bool
-dump_frames (dump_request_t operation, bool state);
-
-static int
-parse_line (char *line, size_t size);
-
-static int
-getver (int argc, char *argv[]);
-
-static int
-dump_rec (int argc, char *argv[]);
-
-static int
-quit_cmd (int argc, char *argv[]);
-
-static int
-help (int argc, char *argv[]);
-
 
 
 // Main entry point.
 
-int main (int argc, char * argv[])
+int
+main (int argc, char * argv[])
 {
     int ch;
     char *port = NULL;
     int fd;
     struct termios options;
     int baudRate = 115200;
-    bool print = false;
     
     signal (SIGINT, (void *) quit);	/* trap ctrl-c calls here */
     
-    while ((ch = getopt (argc, argv, "hvD:b:")) != -1)
+    while ((ch = getopt (argc, argv, "hvD:b:a:")) != -1)
     {
         switch (ch)
         {
@@ -100,6 +76,10 @@ int main (int argc, char * argv[])
                 
             case 'b':
                 baudRate = atoi (optarg);
+                break;
+                
+            case 'a':
+                own_address (SET_PARAMETER, atoi (optarg));
                 break;
                 
             case 'v':
@@ -146,37 +126,30 @@ int main (int argc, char * argv[])
         exit (EXIT_FAILURE);
     }
     
+    pthread_t thread;
+    
+    // create a  thread for sending frames over the serial port
+    if (pthread_create (&thread, NULL, send_frames, (void *) &fd))
+    {
+        fprintf(stdout, "Error creating thread\n");
+        exit (EXIT_FAILURE);
+    }
+    
     // prepare for multiple input sources
     size_t res;
     fd_set readfs;
-    struct timeval timeout;
     int maxfd = fd + 1;
-    uint8_t send_buffer[220];
-    
-    send_buffer[0] = 0xf0;
-    send_buffer[1] = 0;
     
     do
     {
         FD_SET (fd, &readfs);
         FD_SET (fileno (stdin), &readfs);
-        timeout.tv_usec = 5000;     // 5 ms
-        timeout.tv_sec = 0;
 
-        res = select (maxfd, &readfs, NULL, NULL, &timeout);
-        if (res == 0)
-        {
-            // timeout, send a frame
-            send_buffer[1] += 1;
-            if (send_buffer[1] == 0xf0)
-                send_buffer[1] = 0;
-            send_buffer[109] = 0xf1;
-            write (fd, send_buffer, 110);
-        }
-        else if (FD_ISSET(fd, &readfs))
+        res = select (maxfd, &readfs, NULL, NULL, NULL);
+        if (FD_ISSET(fd, &readfs))
         {
             // got a frame from serial
-            res = handle_serial_line (fd, dump_frames (GET_DUMP_STATE, false));
+            res = handle_serial_line (fd, dump_frames (GET_PARAMETER, false));
         }
         else if (FD_ISSET(fileno (stdin), &readfs))
         {
@@ -206,10 +179,11 @@ int main (int argc, char * argv[])
 }
 
 // @brief   Handle serial port input frames.
-// @param   fd: serial file descriptor
+// @param   fd: serial file descriptor.
 // @retval  0 if successful, 1 if serial port error.
 
-static int handle_serial_line (int fd, bool print)
+static int
+handle_serial_line (int fd, bool print)
 {
     ssize_t res;
     static uint8_t buff[400];
@@ -270,155 +244,13 @@ static int handle_serial_line (int fd, bool print)
     }
     else
     {
-        perror("serial\n");
+        perror("serial port read");
         return 1;
     }
 }
 
-static bool
-dump_frames (dump_request_t operation, bool state)
-{
-    static bool dump_frames_state = false;
-    
-    operation == SET_DUMP_STATE ? dump_frames_state = state : 0;
-    return dump_frames_state;
-}
-
-
-#define MAX_PARAMS 16
-#define OK 1
-#define ERROR 0
-#define QUIT -1
-
-typedef struct
-{
-    char *name;
-    int (*func) ();
-    char *help_string;
-} cmds_t;
-
-//===============================================================================
-// Commands table
-//
-const cmds_t rxcmds[] =
-//	CMD,	function,	  help string
-{
-    { "ver", getver, "Returns current version" },
-    { "dump", dump_rec, "Switch on/off dumping of received frames" },
-    { "quit", quit_cmd, "Quit program" },
-    { "exit", quit_cmd, "Exit program" },
-    { "help", help, "Show this help; for individual command help, use <command> -h" },
-    { NULL, NULL, 0 }
-} ;
-
-static int parse_line (char *line, size_t size)
-{
-    char *pbuff;
-    int result;
-    const cmds_t *pcmd;
-    char *argv[MAX_PARAMS]; /* pointers on parameters */
-    int argc; /* parameter counter */
-
-    pbuff = line;
-    *(pbuff + size - 1) = '\0'; // replace nl with null terminator
-    
-    while (*pbuff != ' ' && *pbuff != '\0')
-        pbuff++;
-    *pbuff++ = '\0'; // insert terminator
-    
-    result = ERROR; // init result just in case of failure
-    
-    /* iterate all commands in the table, one by one */
-    for (pcmd = rxcmds; pcmd->name; pcmd++) // lookup in the commands table
-    {
-        if (!strcasecmp (line, pcmd->name)) // valid command, parse parameters, if any
-        {
-            for (argc = 0; argc < MAX_PARAMS; argc++)
-            {
-                if (!*pbuff)
-                    break; 			// end of line reached
-                
-                if (*pbuff == '\"')
-                {
-                    pbuff++; 		// suck up the "
-                    argv[argc] = pbuff;
-                    while (*pbuff != '\"' && *pbuff != '\0')
-                        pbuff++;
-                    *pbuff++ = '\0';
-                    if (*pbuff)		// if not end of line...
-                        pbuff++;	// suck up the trailing space too
-                }
-                else
-                {
-                    argv[argc] = pbuff;
-                    while (*pbuff != ' ' && *pbuff != '\0')
-                        pbuff++;
-                    *pbuff++ = '\0';
-                }
-            }
-            result = (*pcmd->func) (argc, &argv[0]); // execute command
-            break;
-        }
-    }
-    return result;
-}
-
-//#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-static int
-getver (int argc, char *argv[])
-{
-    fprintf (stdout, "Serial Test Utility, version %d.%d, compiled on %s, %s\n",
-             VERSION_MAJOR, VERSION_MINOR, __DATE__, __TIME__);
-    return OK;
-}
-
-static int
-dump_rec (int argc, char *argv[])
-{
-    if (argc == 0)
-    {
-        fprintf (stdout, "Received frames are %sdumped to the console\n",
-                 dump_frames (GET_DUMP_STATE, false) ? "" : "not ");
-    }
-    else if (!strcasecmp (argv[0], "-h"))
-    {
-        fprintf (stdout, "Usage: dump { on | off }\n");
-    }
-    else if (!strcasecmp (argv[0], "on"))
-    {
-        dump_frames (SET_DUMP_STATE, true);
-    }
-    else if (!strcasecmp (argv[0], "off"))
-    {
-        dump_frames (SET_DUMP_STATE, false);
-    }
-    return OK;
-}
-
-static int
-quit_cmd (int argc, char *argv[])
-{
-    quit ();    // no return!
-    return OK;
-}
-
-static int
-help (int argc, char *argv[])
-{
-    const cmds_t *pcmd;
-    
-    fprintf (stdout, "Following commands are available:\r\n");
-    for (pcmd = rxcmds; pcmd->name; pcmd++)
-        fprintf (stdout, "  %-10s%s\r\n", pcmd->name, pcmd->help_string);
-    return OK;
-}
-
-
-//#pragma GCC diagnostic pop
-
-
-static void quit (void)
+void
+quit (void)
 {
     fprintf (stdout, "Total frames received: %d\n", counter);
     exit (1);

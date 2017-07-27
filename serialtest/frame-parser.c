@@ -25,17 +25,27 @@
 //  Created on 20/07/2017 (lnp)
 //
 
+#include <unistd.h>
 #include <stdbool.h>
+
+#include "utils.h"
 #include "frame-parser.h"
 
 #define PARSER_DEBUG 0
 
+pthread_mutex_t send_serial_mutex = PTHREAD_MUTEX_INITIALIZER;
+ipc_t ipc;
+
+
 //  @brief This function parses 0xf0/0xf1 (begin/end) type frames.
-//  @param buff: pointer to a buffer to parse; the pointer on the frame begin will be returned here.
-//  @param len: pointer on the buffer's length; on return it contains the parsed frame length.
+//  @param begin: pointer to a buffer's begin to parse; the pointer on the frame
+//      begin will be returned here.
+//  @param end: pointer on the buffer's end; the pointer on the frame's end will
+//      be returned here.
 //  @retval parsing result (see parse_result_t typedef).
 
-parse_result_t parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
+parse_result_t
+parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
 {
     uint8_t *p = *begin;
     int result = FRAME_NOT_FOUND;
@@ -96,7 +106,8 @@ parse_result_t parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
 //  @param buff: buffer containing the frame.
 //  @param len: length of the frame.
 
-void print_f0_f1_frames (uint8_t *buff, ssize_t len)
+void
+print_f0_f1_frames (uint8_t *buff, ssize_t len)
 {
     if (buff[len - 2] == 0xf1)      // do we have a valid rssi?
     {
@@ -112,4 +123,72 @@ void print_f0_f1_frames (uint8_t *buff, ssize_t len)
         fprintf (stdout, "%02x ", buff[i]);
     }
     fprintf (stdout, "\n");
+}
+
+// @brief Send frames over the serial port.
+// @param p: void pointer, contains the file descriptor of the serial port.
+// @retval a null pointer.
+
+void *
+send_frames (void *p)
+{
+    int fd = *(int *) p;
+    uint8_t send_buffer[20];
+    struct timespec sts;
+    bool send_low_latency = false;
+    frame_hdr_t *hdr;
+    
+    send_buffer[0] = 0xf0;
+    send_buffer[19] = 0xf1;
+    hdr = (frame_hdr_t *) &send_buffer[1];
+    
+    while (true)
+    {
+        pthread_mutex_lock (&send_serial_mutex);
+        if (ipc.cmd)
+        {
+            switch (ipc.cmd)
+            {
+                case SEND_LOW_LATENCY_FRAMES:
+                    send_low_latency = true;
+                    hdr->dest = ipc.address;
+                    hdr->src = own_address(GET_PARAMETER, 0);
+                    hdr->index = 0;
+                    break;
+                    
+                case STOP_LOW_LATENCY_FRAMES:
+                    send_low_latency = false;
+                    break;
+                    
+                default:
+                    // unknown command
+                    break;
+            }
+            ipc.cmd = NOP;
+        }
+        pthread_mutex_unlock (&send_serial_mutex);
+        
+        if (send_low_latency)
+        {
+            hdr->index += 1;
+            if (hdr->index == 0xf0)
+            {
+                hdr->index = 0;
+            }
+            
+            if (write (fd, send_buffer, sizeof(send_buffer)) < 0)
+            {
+                perror("serial port write");
+                break;
+            }
+        }
+        
+        sts.tv_nsec = 10000000; // 10 ms
+        sts.tv_sec = 0;
+        nanosleep (&sts, NULL);
+    }
+    
+    printf ("Send thread exiting now\n");
+    
+    pthread_exit (NULL);
 }

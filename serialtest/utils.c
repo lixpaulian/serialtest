@@ -1,5 +1,5 @@
 //
-//  frame-parser.h
+//  utils.c
 //  serialtest
 //
 //  Copyright (c) 2017 Lix N. Paulian (lix@paulian.net)
@@ -22,54 +22,32 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 //
-//  Created on 20/07/2017 (lnp)
+//  Created on 27/07/2017 (lnp)
 //
 
-#ifndef frame_parser_h
-#define frame_parser_h
+#include <stdbool.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
 
-#include <stdio.h>
-#include <pthread.h>
+#include "utils.h"
 
 
-typedef enum
+bool
+dump_frames (get_set_cmd_t operation, bool state)
 {
-    FRAME_NOT_FOUND = -1,
-    FRAME_OK = 0,
-    FRAME_TRUNCATED,
-} parse_result_t;
+    static bool dump_frames_state = false;
+    
+    operation == SET_PARAMETER ? dump_frames_state = state : 0;
+    return dump_frames_state;
+}
 
-typedef struct
+
+uint8_t
+own_address (get_set_cmd_t operation, uint8_t address)
 {
-    uint8_t dest;
-    uint8_t src;
-    uint8_t index;
-    uint8_t type;
-} frame_hdr_t;
-
-// interprocess communication structure
-typedef struct
-{
-    int cmd;
-    uint8_t address;
-} ipc_t;
-
-typedef enum
-{
-    NOP,
-    SEND_LOW_LATENCY_FRAMES,
-    STOP_LOW_LATENCY_FRAMES,
-    SEND_FILE,
-} serial_cmds_t;
-
-parse_result_t
-parse_f0_f1_frames (uint8_t **buff, uint8_t **end);
-
-void
-print_f0_f1_frames (uint8_t *buff, ssize_t len);
-
-void *
-send_frames (void *p);
-
-
-#endif /* frame_parser_h */
+    static uint8_t my_address = 10;
+    
+    operation == SET_PARAMETER ? my_address = address : 0;
+    return my_address;
+}
