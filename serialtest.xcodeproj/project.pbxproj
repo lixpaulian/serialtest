@@ -11,6 +11,7 @@
 		EC3A32FF1F29E31D00400AC8 /* utils.c in Sources */ = {isa = PBXBuildFile; fileRef = EC3A32FD1F29E31D00400AC8 /* utils.c */; };
 		EC4F764C1ECC9C740000C9FF /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = EC4F764B1ECC9C740000C9FF /* main.c */; };
 		ECC97BCB1F20AF0800496451 /* frame-parser.c in Sources */ = {isa = PBXBuildFile; fileRef = ECC97BC91F20AF0800496451 /* frame-parser.c */; };
+		ECD32F261F2B6E7C00774385 /* statistics.c in Sources */ = {isa = PBXBuildFile; fileRef = ECD32F241F2B6E7C00774385 /* statistics.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -34,6 +35,8 @@
 		EC4F764B1ECC9C740000C9FF /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		ECC97BC91F20AF0800496451 /* frame-parser.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "frame-parser.c"; sourceTree = "<group>"; };
 		ECC97BCA1F20AF0800496451 /* frame-parser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "frame-parser.h"; sourceTree = "<group>"; };
+		ECD32F241F2B6E7C00774385 /* statistics.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = statistics.c; sourceTree = "<group>"; };
+		ECD32F251F2B6E7C00774385 /* statistics.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = statistics.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +76,8 @@
 				EC3A32FB1F29DD4C00400AC8 /* cli.h */,
 				EC3A32FD1F29E31D00400AC8 /* utils.c */,
 				EC3A32FE1F29E31D00400AC8 /* utils.h */,
+				ECD32F241F2B6E7C00774385 /* statistics.c */,
+				ECD32F251F2B6E7C00774385 /* statistics.h */,
 			);
 			path = serialtest;
 			sourceTree = "<group>";
@@ -135,6 +140,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EC3A32FC1F29DD4C00400AC8 /* cli.c in Sources */,
+				ECD32F261F2B6E7C00774385 /* statistics.c in Sources */,
 				EC3A32FF1F29E31D00400AC8 /* utils.c in Sources */,
 				ECC97BCB1F20AF0800496451 /* frame-parser.c in Sources */,
 				EC4F764C1ECC9C740000C9FF /* main.c in Sources */,
