@@ -32,6 +32,10 @@
 #include <pthread.h>
 
 
+#define SOF_CHAR 0xf0
+#define EOF_CHAR 0xf1
+#define ESCAPE_CHAR 0xf2
+
 typedef enum
 {
     FRAME_NOT_FOUND = -1,
@@ -47,11 +51,19 @@ typedef struct
     uint8_t type;
 } frame_hdr_t;
 
+typedef struct
+{
+    uint8_t sof;
+    frame_hdr_t header;
+    uint8_t payload[];  // length is variable
+} f0_f1_frame_t;
+
 // interprocess communication structure
 typedef struct
 {
     int cmd;
     uint8_t address;
+    uint32_t parameter;
 } ipc_t;
 
 typedef enum
@@ -60,13 +72,32 @@ typedef enum
     SEND_LOW_LATENCY_FRAMES,
     STOP_LOW_LATENCY_FRAMES,
     SEND_FILE,
+    SET_CHANNEL,
+    SET_RATE
 } serial_cmds_t;
+
+typedef enum
+{
+    LOW_LATENCY,
+    FILE_XFER,
+    SET_RADIO_CHANNEL,
+    SET_RADIO_RATE
+} radio_cmds_t;
+
+typedef enum
+{
+    MOD_OQPSK_100K = 0,
+    MOD_OQPSK_250K,
+    MOD_GFSK_1M,
+    MOD_GFSK_2M
+} rate_t;
+
 
 parse_result_t
 parse_f0_f1_frames (uint8_t **buff, uint8_t **end);
 
 void
-print_f0_f1_frames (uint8_t *buff, ssize_t len);
+print_f0_f1_frames (uint8_t *buff, size_t len);
 
 void *
 send_frames (void *p);

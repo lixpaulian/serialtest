@@ -27,6 +27,7 @@
 
 #include <unistd.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "utils.h"
 #include "frame-parser.h"
@@ -55,27 +56,27 @@ parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
 #endif
     
     // find the frame's start
-    while (*p != 0xf0 && p < *end)
+    while (*p != SOF_CHAR && p < *end)
     {
         p++;
     }
     
-    if (*p == 0xf0) // start of frame
+    if (*p == SOF_CHAR) // start of frame
     {
         *begin = p; // store the frame start
         if (p < *end)
             p++;   // and get over it
         
-        while (*p != 0xf1 && p < *end)
+        while (*p != EOF_CHAR && p < *end)
         {
-            if (*p == 0xf0)
+            if (*p == SOF_CHAR)
             {
                 *begin = p;  // new frame start, reset search
             }
             p++;
         }
         
-        if (*p == 0xf1) // end of frame
+        if (*p == EOF_CHAR) // end of frame
         {
             if (p == *end)
             {
@@ -107,9 +108,9 @@ parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
 //  @param len: length of the frame.
 
 void
-print_f0_f1_frames (uint8_t *buff, ssize_t len)
+print_f0_f1_frames (uint8_t *buff, size_t len)
 {
-    if (buff[len - 2] == 0xf1)      // do we have a valid rssi?
+    if (buff[len - 2] == EOF_CHAR)      // do we have a valid rssi?
     {
         fprintf (stdout, "%3ld bytes, rssi %03d dBm: ", len, buff[len - 1] * -1);
     }
@@ -135,12 +136,15 @@ send_frames (void *p)
     int fd = *(int *) p;
     uint8_t send_buffer[20];
     struct timespec sts;
-    bool send_low_latency = false;
-    frame_hdr_t *hdr;
+    bool send_periodically = false;
+    bool send_one_time = false;
+    f0_f1_frame_t *frame;
+    uint8_t dest_address = 0;
     
-    send_buffer[0] = 0xf0;
-    send_buffer[19] = 0xf1;
-    hdr = (frame_hdr_t *) &send_buffer[1];
+    frame = (f0_f1_frame_t *) &send_buffer;
+    frame->sof = SOF_CHAR;
+    frame->header.index = 0;
+    frame->header.src = own_address(GET_PARAMETER, 0);
     
     while (true)
     {
@@ -150,14 +154,28 @@ send_frames (void *p)
             switch (ipc.cmd)
             {
                 case SEND_LOW_LATENCY_FRAMES:
-                    send_low_latency = true;
-                    hdr->dest = ipc.address;
-                    hdr->src = own_address(GET_PARAMETER, 0);
-                    hdr->index = 0;
+                    dest_address = ipc.address;
+                    send_periodically = true;
                     break;
                     
                 case STOP_LOW_LATENCY_FRAMES:
-                    send_low_latency = false;
+                    send_periodically = false;
+                    break;
+                    
+                case SET_CHANNEL:
+                    frame->header.dest = ipc.address;
+                    frame->header.type = SET_RADIO_CHANNEL;
+                    frame->payload[0] = (uint8_t) ipc.parameter;
+                    frame->payload[1] = EOF_CHAR;
+                    send_one_time = true;
+                    break;
+                    
+                case SET_RATE:
+                    frame->header.dest = ipc.address;
+                    frame->header.type = SET_RADIO_RATE;
+                    frame->payload[0] = (uint8_t) ipc.parameter;
+                    frame->payload[1] = EOF_CHAR;
+                    send_one_time = true;
                     break;
                     
                 default:
@@ -168,18 +186,40 @@ send_frames (void *p)
         }
         pthread_mutex_unlock (&send_serial_mutex);
         
-        if (send_low_latency)
+        if (send_periodically || send_one_time)
         {
-            hdr->index += 1;
-            if (hdr->index == 0xf0)
+            frame->header.index += 1;
+            if (frame->header.index == SOF_CHAR)
             {
-                hdr->index = 0;
+                frame->header.index = 0;
             }
             
-            if (write (fd, send_buffer, sizeof(send_buffer)) < 0)
+            int count;
+            uint8_t *p;
+            struct timespec tp;
+            
+            clock_gettime (CLOCK_MONOTONIC, &tp);
+            
+            for (p = send_buffer, count = 0; *p++ != EOF_CHAR; count++)
+                 ;
+            
+            if (write (fd, send_buffer, count + 1) < 0)
             {
                 perror("serial port write");
                 break;
+            }
+            
+            if (send_one_time)
+            {
+                send_one_time = false;
+            }
+            else
+            {
+                frame->header.type = LOW_LATENCY;
+                frame->header.dest = dest_address;
+                memset (&frame->payload, 0x55, sizeof (send_buffer) -
+                        sizeof (frame_hdr_t) - 2);
+                send_buffer[19] = EOF_CHAR;
             }
         }
         
@@ -187,8 +227,6 @@ send_frames (void *p)
         sts.tv_sec = 0;
         nanosleep (&sts, NULL);
     }
-    
-    printf ("Send thread exiting now\n");
     
     pthread_exit (NULL);
 }
