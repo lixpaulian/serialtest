@@ -80,7 +80,7 @@ const cmds_t rxcmds[] =
     { "quit", quit_cmd, "Quit program" },
     { "exit", quit_cmd, "Exit program" },
     { "help", help, "Show this help; for individual command help, use <command> -h" },
-    { NULL, NULL, 0 }
+    { NULL, NULL, NULL }
 } ;
 
 // @brief Parse a command line from the user.
@@ -139,6 +139,10 @@ parse_line (char *line, size_t size)
             break;
         }
     }
+    if (pcmd->name == NULL && size > 1)
+    {
+        fprintf (stdout, "Unknown command\n");
+    }
     return result;
 }
 
@@ -183,13 +187,49 @@ send_cmd (int argc, char *argv[])
 {
     if (argc > 2)
     {
+        pthread_mutex_lock (&send_serial_mutex);
         if (!strcasecmp (argv[0], "ll"))   // send low latency frames
         {
-            pthread_mutex_lock (&send_serial_mutex);
             ipc.address = atoi (argv[1]);
-            ipc.cmd = strcasecmp (argv[0], "on") ? SEND_LOW_LATENCY_FRAMES : STOP_LOW_LATENCY_FRAMES;
-            pthread_mutex_unlock (&send_serial_mutex);
+            ipc.cmd = !strcasecmp (argv[2], "on") ? SEND_LOW_LATENCY_FRAMES : STOP_LOW_LATENCY_FRAMES;
         }
+        else if (!strcasecmp (argv[0], "ch"))
+        {
+            ipc.address = atoi (argv[1]);
+            ipc.cmd = SET_CHANNEL;
+            ipc.parameter = atoi (argv[2]);
+        }
+        else if (!strcasecmp (argv[0], "rate"))
+        {
+            ipc.address = atoi (argv[1]);
+            ipc.cmd = SET_RATE;
+            
+            if (!strcasecmp (argv[2], "100K"))
+            {
+                ipc.parameter = MOD_OQPSK_100K;
+            }
+            else if (!strcasecmp (argv[2], "250K"))
+            {
+                ipc.parameter = MOD_OQPSK_250K;
+            }
+            else if (!strcasecmp (argv[2], "1M"))
+            {
+                ipc.parameter = MOD_GFSK_1M;
+            }
+            else if (!strcasecmp (argv[2], "2M"))
+            {
+                ipc.parameter = MOD_GFSK_2M;
+            }
+            else
+            {
+                fprintf (stdout, "Invalid data rate; valid values are 100K, 250K, 1M and 2M\n");
+            }
+        }
+        else
+        {
+            fprintf (stdout, "Invalid parameter\n");
+        }
+        pthread_mutex_unlock (&send_serial_mutex);
     }
     else
     {
