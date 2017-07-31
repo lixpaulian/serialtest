@@ -39,6 +39,7 @@
 #include "frame-parser.h"
 #include "cli.h"
 #include "utils.h"
+#include "statistics.h"
 
 
 #define SERIAL_DEBUG 0
@@ -211,6 +212,7 @@ handle_serial_line (int fd, bool print)
             {
                 print_f0_f1_frames (begin, end - begin + 1);
             }
+            analyzer (begin, end - begin + 1);
             counter++;
             
             if (end < buff + res + offset) // whole buffer done?
