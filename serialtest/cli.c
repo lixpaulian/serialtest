@@ -32,6 +32,7 @@
 
 #include "utils.h"
 #include "frame-parser.h"
+#include "statistics.h"
 #include "cli.h"
 
 
@@ -58,6 +59,9 @@ static int
 dump_rec (int argc, char *argv[]);
 
 static int
+stats_cmd (int argc, char *argv[]);
+
+static int
 send_cmd (int argc, char *argv[]);
 
 static int
@@ -77,6 +81,7 @@ const cmds_t rxcmds[] =
     { "ver", getver, "Returns current version" },
     { "dump", dump_rec, "Switch on/off dumping of received frames" },
     { "send", send_cmd, "Send various types of frames over the serial port" },
+    { "stat", stats_cmd, "Show/clear statistics" },
     { "quit", quit_cmd, "Quit program" },
     { "exit", quit_cmd, "Exit program" },
     { "help", help, "Show this help; for individual command help, use <command> -h" },
@@ -234,6 +239,39 @@ send_cmd (int argc, char *argv[])
     else
     {
         fprintf (stdout, "Usage:\tsend ll dest_addr { on | off }\n");
+    }
+    
+    return OK;
+}
+
+// Statistics related commands.
+static int
+stats_cmd (int argc, char *argv[])
+{
+    if (argc > 0)
+    {
+        if (!strcasecmp (argv[0], "clear"))
+        {
+            clear_stats();
+        }
+    }
+    else
+    {
+        for (int i = 0; i < 255; i++)
+        {
+            if (g_stats[i].frames_recvd)
+            {
+                fprintf (stdout, "Node %d: avg rssi: %d dBm, total frames %d, lost frames %d (%.1f%%)\n"
+                         "Average/min/max latency (ms): %.2f/%.2f/%.2f\n",
+                         i, g_stats[i].rssi_sum  / g_stats[i].rssi_samples * -1,
+                         g_stats[i].frames_recvd + g_stats[i].frames_lost, g_stats[i].frames_lost,
+                         g_stats[i].frames_lost * 100.0 / (g_stats[i].frames_recvd + g_stats[i].frames_lost),
+                         (g_stats[i].latency_sum / (g_stats[i].latency_samples) / 1000.0),
+                         g_stats[i].latency_min / 1000.0, g_stats[i].latency_max / 1000.0);
+                fprintf (stdout, "Frames with CRC errors %u (%.1f%% from total frames received)\n",
+                         g_crc_error_count, g_crc_error_count * 100.0 / g_total_recvd_frames);
+            }
+        }
     }
     
     return OK;
