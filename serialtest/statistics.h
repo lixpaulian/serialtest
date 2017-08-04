@@ -30,8 +30,27 @@
 
 #include <stdio.h>
 
+typedef struct statistics_
+{
+    uint8_t last_index;
+    int frames_recvd;
+    int frames_lost;
+    uint32_t latency_max;
+    uint32_t latency_min;
+    uint64_t latency_sum;
+    uint32_t latency_samples;
+    uint32_t rssi_sum;
+    uint32_t rssi_samples;
+} statistics_t;
+
+extern statistics_t g_stats[];
+extern uint32_t g_crc_error_count;
+extern uint32_t g_total_recvd_frames;
+
 void
 analyzer (uint8_t *frame, size_t len);
 
+void
+clear_stats (void);
 
 #endif /* statistics_h */
