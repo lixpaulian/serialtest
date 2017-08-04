@@ -28,11 +28,13 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "utils.h"
 #include "frame-parser.h"
 
 #define PARSER_DEBUG 0
+#define SERIAL_DEBUG 0
 
 pthread_mutex_t send_serial_mutex = PTHREAD_MUTEX_INITIALIZER;
 ipc_t ipc;
@@ -126,6 +128,61 @@ print_f0_f1_frames (uint8_t *buff, size_t len)
     fprintf (stdout, "\n");
 }
 
+//  @brief Extract the useful data from an 0xf0/0xf1 frame.
+//  @param buff: pointer on a 0xf0/0xf1 frame
+//  @param len: length of the frame
+//  @retval The number of bytes the resulting frame has; the "cleaned" frame
+//      is returned at the "buff" pointer
+
+int
+extract_f0_f1_frame (uint8_t *buff, size_t len)
+{
+    uint8_t *p = buff;
+    uint8_t *q = buff;
+    int count = 0;
+    
+    if (buff[len - 2] == EOF_CHAR && *buff == SOF_CHAR) // do we have a valid frame + rssi?
+    {
+        p++;    // skip the start of frame (0xf0)
+        while (*p != EOF_CHAR)
+        {
+            if (*p == ESCAPE_CHAR)
+            {
+                p++;
+                if (*p == 0)
+                    *q = SOF_CHAR;
+                else if (*p == 1)
+                    *q = EOF_CHAR;
+                else if (*p == 2)
+                    *q = ESCAPE_CHAR;
+                else
+                    break;  // error! malformed frame
+                q++;
+                p++;
+            }
+            else
+            {
+                *q++ = *p++;
+            }
+        }
+        if (*p++ != EOF_CHAR)
+        {
+            count = -1;
+        }
+        else
+        {
+            *q = *p;    // copy rssi at the end of the frame
+            count = (int) (q - buff) + 1;
+        }
+    }
+    else
+    {
+        count = -1; // invalid frame
+    }
+    
+    return count;
+}
+
 // @brief Send frames over the serial port.
 // @param p: void pointer, contains the file descriptor of the serial port.
 // @retval a null pointer.
@@ -133,16 +190,17 @@ print_f0_f1_frames (uint8_t *buff, size_t len)
 void *
 send_frames (void *p)
 {
+#define LOCAL_BUFFER_SIZE 22
     int fd = *(int *) p;
-    uint8_t send_buffer[20];
+    uint8_t send_buffer[LOCAL_BUFFER_SIZE + 2];    // +2 for CRC
     struct timespec sts;
     bool send_periodically = false;
     bool send_one_time = false;
-    f0_f1_frame_t *frame;
+    frame_t *frame;
     uint8_t dest_address = 0;
+    int count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
     
-    frame = (f0_f1_frame_t *) &send_buffer;
-    frame->sof = SOF_CHAR;
+    frame = (frame_t *) &send_buffer;
     frame->header.index = 0;
     frame->header.src = own_address(GET_PARAMETER, 0);
     
@@ -155,6 +213,7 @@ send_frames (void *p)
             {
                 case SEND_LOW_LATENCY_FRAMES:
                     dest_address = ipc.address;
+                    count = LOCAL_BUFFER_SIZE;
                     send_periodically = true;
                     break;
                     
@@ -166,7 +225,7 @@ send_frames (void *p)
                     frame->header.dest = ipc.address;
                     frame->header.type = SET_RADIO_CHANNEL;
                     frame->payload[0] = (uint8_t) ipc.parameter;
-                    frame->payload[1] = EOF_CHAR;
+                    count = 1;
                     send_one_time = true;
                     break;
                     
@@ -174,7 +233,7 @@ send_frames (void *p)
                     frame->header.dest = ipc.address;
                     frame->header.type = SET_RADIO_RATE;
                     frame->payload[0] = (uint8_t) ipc.parameter;
-                    frame->payload[1] = EOF_CHAR;
+                    count = 1;
                     send_one_time = true;
                     break;
                     
@@ -189,21 +248,20 @@ send_frames (void *p)
         if (send_periodically || send_one_time)
         {
             frame->header.index += 1;
-            if (frame->header.index == SOF_CHAR)
-            {
-                frame->header.index = 0;
-            }
             
-            int count;
-            uint8_t *p;
             struct timespec tp;
-            
             clock_gettime (CLOCK_MONOTONIC, &tp);
+            frame->header.timestamp = (uint32_t) (tp.tv_nsec / 1000);
             
-            for (p = send_buffer, count = 0; *p++ != EOF_CHAR; count++)
-                 ;
+            frame->header.magic = MAGIC;
             
-            if (write (fd, send_buffer, count + 1) < 0)
+            // compute frame's CRC
+            uint16_t crc = calcCRC(0, send_buffer, count + sizeof (frame_hdr_t));
+            send_buffer[count + sizeof (frame_hdr_t)] = (uint8_t) crc;
+            send_buffer[count + sizeof (frame_hdr_t) + 1] = (uint8_t) (crc >> 8) & 0xFF;
+            
+            count += 2;
+            if (send_f0_f1_frame (fd, send_buffer, count + sizeof (frame_hdr_t)) < 0)
             {
                 perror("serial port write");
                 break;
@@ -217,16 +275,66 @@ send_frames (void *p)
             {
                 frame->header.type = LOW_LATENCY;
                 frame->header.dest = dest_address;
-                memset (&frame->payload, 0x55, sizeof (send_buffer) -
-                        sizeof (frame_hdr_t) - 2);
-                send_buffer[19] = EOF_CHAR;
+                memset (&frame->payload, 0x55, LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t));
+                count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
             }
         }
         
-        sts.tv_nsec = 10000000; // 10 ms
+        sts.tv_nsec = 8000000 + own_address(GET_PARAMETER, 0) * 1000000; // ~10 ms
         sts.tv_sec = 0;
         nanosleep (&sts, NULL);
     }
     
     pthread_exit (NULL);
+}
+
+
+ssize_t
+send_f0_f1_frame (int fd, uint8_t *frame, int count)
+{
+    uint8_t send_buffer[MAX_FRAME_LEN];
+    uint8_t *p = send_buffer;
+    int i;
+    
+    *p++ = SOF_CHAR;
+    
+    for (i = 0; i < count; i++)
+    {
+        if (p < send_buffer + MAX_FRAME_LEN - 1)
+        {
+            switch (frame[i])
+            {
+                case SOF_CHAR:
+                    *p++ = ESCAPE_CHAR;
+                    *p++ = 0;
+                    break;
+                    
+                case EOF_CHAR:
+                    *p++ = ESCAPE_CHAR;
+                    *p++ = 1;
+                    break;
+                    
+                case ESCAPE_CHAR:
+                    *p++ = ESCAPE_CHAR;
+                    *p++ = 2;
+                    break;
+                    
+                default:
+                    *p++ = frame[i];
+            }
+        }
+    }
+    *p++ = EOF_CHAR;
+    count = (int) (p - send_buffer);
+    
+#if SERIAL_DEBUG == 1
+    fprintf (stdout, "sent %d bytes, ", count);
+    for (int i = 0; i < count; i++)
+    {
+        fprintf (stdout, "%02x ", send_buffer[i]);
+    }
+    fprintf (stdout, "\n");
+#endif
+
+    return write (fd, send_buffer, count);
 }

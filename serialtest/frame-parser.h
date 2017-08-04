@@ -35,6 +35,8 @@
 #define SOF_CHAR 0xf0
 #define EOF_CHAR 0xf1
 #define ESCAPE_CHAR 0xf2
+#define MAX_FRAME_LEN 240
+#define MAGIC 0xDEADBEEF
 
 typedef enum
 {
@@ -49,14 +51,15 @@ typedef struct
     uint8_t src;
     uint8_t index;
     uint8_t type;
+    uint32_t timestamp;
+    uint32_t magic;
 } frame_hdr_t;
 
 typedef struct
 {
-    uint8_t sof;
     frame_hdr_t header;
     uint8_t payload[];  // length is variable
-} f0_f1_frame_t;
+} frame_t;
 
 // interprocess communication structure
 typedef struct
@@ -81,7 +84,8 @@ typedef enum
     LOW_LATENCY,
     FILE_XFER,
     SET_RADIO_CHANNEL,
-    SET_RADIO_RATE
+    SET_RADIO_RATE,
+    HIGHEST_CMD
 } radio_cmds_t;
 
 typedef enum
@@ -101,6 +105,12 @@ print_f0_f1_frames (uint8_t *buff, size_t len);
 
 void *
 send_frames (void *p);
+
+ssize_t
+send_f0_f1_frame (int fd, uint8_t *frame, int count);
+
+int
+extract_f0_f1_frame (uint8_t *buff, size_t len);
 
 
 #endif /* frame_parser_h */
