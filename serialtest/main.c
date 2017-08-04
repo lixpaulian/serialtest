@@ -44,7 +44,6 @@
 
 #define SERIAL_DEBUG 0
 
-static int counter = 0;
 
 void
 quit (void);
@@ -126,6 +125,16 @@ main (int argc, char * argv[])
         fprintf (stdout, "Failed to open serial device %s\n", port);
         exit (EXIT_FAILURE);
     }
+    
+    // set proper backspace character
+    tcgetattr (fileno (stdin), &options);
+    options.c_cc[VERASE] = 0x8;
+    if (tcsetattr (fileno (stdin), TCSANOW, &options) < 0)
+    {
+        fprintf (stdout, "Failed to set erase character on stdin\n");
+    }
+    
+    clear_stats (); // clear all statistic data
     
     pthread_t thread;
     
@@ -212,9 +221,22 @@ handle_serial_line (int fd, bool print)
             {
                 print_f0_f1_frames (begin, end - begin + 1);
             }
-            analyzer (begin, end - begin + 1);
-            counter++;
             
+            int count = extract_f0_f1_frame (begin, end - begin + 1);
+            if (count > 0)
+            {
+                uint16_t crc = begin[count - 3];
+                crc |=  begin[count - 2] << 8;
+                if (calcCRC (0, begin, count - 3) == crc)
+                {
+                    analyzer (begin, count);
+                }
+                else
+                {
+                    g_crc_error_count++;
+                }
+                g_total_recvd_frames++;
+            }
             if (end < buff + res + offset) // whole buffer done?
             {
                 // no, we might have more frames here, or at least a truncated one
@@ -254,6 +276,5 @@ handle_serial_line (int fd, bool print)
 void
 quit (void)
 {
-    fprintf (stdout, "Total frames received: %d\n", counter);
     exit (1);
 }
