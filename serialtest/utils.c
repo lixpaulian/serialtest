@@ -51,3 +51,28 @@ own_address (get_set_cmd_t operation, uint8_t address)
     operation == SET_PARAMETER ? my_address = address : 0;
     return my_address;
 }
+
+
+//  @brief Computes the CRC-16 of the input string pointed to by buff.
+//  @param crc: initial crc value
+//  @param buff: a pointer to the buffer containing the data to be CRC-ized
+//  @param len: buffer length.
+//  @retval computed CRC-16 value.
+
+uint16_t
+calcCRC (uint16_t crc, uint8_t *buff, int len)
+{
+    int i, j;
+    
+    for (i = 0; i < len; i++) /* calculate CRC */
+    {
+        crc ^= (uint16_t) *buff++ << 8;
+        for (j = 0; j < 8; j++)
+            if (crc & 0x8000)
+                crc = crc << 1 ^ 0x1021;
+            else
+                crc <<= 1;
+    }
+    return crc;
+}
+

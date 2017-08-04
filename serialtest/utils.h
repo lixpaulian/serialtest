@@ -30,6 +30,8 @@
 
 #include <stdio.h>
 
+#define BCAST_ADDRESS 255
+
 typedef enum
 {
     GET_PARAMETER,
@@ -42,5 +44,9 @@ dump_frames (get_set_cmd_t operation, bool state);
 
 uint8_t
 own_address (get_set_cmd_t operation, uint8_t address);
+
+uint16_t
+calcCRC (uint16_t crc, uint8_t *buff, int len);
+
 
 #endif /* utils_h */
