@@ -261,14 +261,14 @@ stats_cmd (int argc, char *argv[])
         {
             if (g_stats[i].frames_recvd)
             {
-                fprintf (stdout, "Node %d: avg rssi: %d dBm, total frames %d, lost frames %d (%.1f%%)\n"
+                fprintf (stdout, "Node %d: avg rssi: %d dBm, total frames %d, lost frames %d (%.2f%%)\n"
                          "Average/min/max latency (ms): %.2f/%.2f/%.2f\n",
                          i, g_stats[i].rssi_sum  / g_stats[i].rssi_samples * -1,
                          g_stats[i].frames_recvd + g_stats[i].frames_lost, g_stats[i].frames_lost,
                          g_stats[i].frames_lost * 100.0 / (g_stats[i].frames_recvd + g_stats[i].frames_lost),
                          (g_stats[i].latency_sum / (g_stats[i].latency_samples) / 1000.0),
                          g_stats[i].latency_min / 1000.0, g_stats[i].latency_max / 1000.0);
-                fprintf (stdout, "Frames with CRC errors %u (%.1f%% from total frames received)\n",
+                fprintf (stdout, "Frames with CRC errors %u (%.2f%% from total frames received)\n",
                          g_crc_error_count, g_crc_error_count * 100.0 / g_total_recvd_frames);
             }
         }
