@@ -230,6 +230,19 @@ send_cmd (int argc, char *argv[])
                 fprintf (stdout, "Invalid data rate; valid values are 100K, 250K, 1M and 2M\n");
             }
         }
+        else if (!strcasecmp (argv[0], "hop"))
+        {
+            if (argc == 3)
+            {
+                ipc.cmd = SET_HOP_PARAMS;
+                ipc.parameter = atoi (argv[1]);
+                ipc.parameter1 = atoi (argv[2]);
+            }
+            else
+            {
+                fprintf (stdout, "Insuficient arguments");
+            }
+        }
         else
         {
             fprintf (stdout, "Invalid parameter\n");

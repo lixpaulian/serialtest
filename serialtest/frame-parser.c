@@ -193,6 +193,7 @@ send_frames (void *p)
 #define LOCAL_BUFFER_SIZE 22
     int fd = *(int *) p;
     uint8_t send_buffer[LOCAL_BUFFER_SIZE + 2];    // +2 for CRC
+    uint8_t cc_buffer[20];
     struct timespec sts;
     bool send_periodically = false;
     bool send_one_time = false;
@@ -212,34 +213,48 @@ send_frames (void *p)
             switch (ipc.cmd)
             {
                 case SEND_LOW_LATENCY_FRAMES:
-                    dest_address = ipc.address;
-                    count = LOCAL_BUFFER_SIZE;
-                    send_periodically = true;
-                    break;
-                    
+                dest_address = ipc.address;
+                count = LOCAL_BUFFER_SIZE;
+                send_periodically = true;
+                break;
+                
                 case STOP_LOW_LATENCY_FRAMES:
-                    send_periodically = false;
-                    break;
-                    
+                send_periodically = false;
+                break;
+                
                 case SET_CHANNEL:
-                    frame->header.dest = ipc.address;
-                    frame->header.type = SET_RADIO_CHANNEL;
-                    frame->payload[0] = (uint8_t) ipc.parameter;
-                    count = 1;
-                    send_one_time = true;
-                    break;
-                    
+                frame->header.dest = ipc.address;
+                frame->header.type = SET_RADIO_CHANNEL;
+                frame->payload[0] = (uint8_t) ipc.parameter;
+                count = 1;
+                send_one_time = true;
+                break;
+                
                 case SET_RATE:
-                    frame->header.dest = ipc.address;
-                    frame->header.type = SET_RADIO_RATE;
-                    frame->payload[0] = (uint8_t) ipc.parameter;
-                    count = 1;
-                    send_one_time = true;
+                frame->header.dest = ipc.address;
+                frame->header.type = SET_RADIO_RATE;
+                frame->payload[0] = (uint8_t) ipc.parameter;
+                count = 1;
+                send_one_time = true;
+                break;
+                
+                case SET_HOP_PARAMS:
+                cc_buffer[0] = 0xcc;
+                cc_buffer[1] = 0x67;    // set/get hop parameters
+                cc_buffer[2] = ipc.parameter & 0xff;
+                cc_buffer[3] = (ipc.parameter >> 8) & 0xff;
+                cc_buffer[4] = ipc.parameter1 & 0xff;
+                cc_buffer[5] = (ipc.parameter1 >> 8) & 0xff;
+                if (write (fd, cc_buffer, 6) < 0)
+                {
+                    perror("serial port write");
                     break;
-                    
+                }
+                break;
+                
                 default:
-                    // unknown command
-                    break;
+                // unknown command
+                break;
             }
             ipc.cmd = NOP;
         }

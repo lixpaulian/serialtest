@@ -67,6 +67,7 @@ typedef struct
     int cmd;
     uint8_t address;
     uint32_t parameter;
+    uint32_t parameter1;
 } ipc_t;
 
 typedef enum
@@ -76,7 +77,8 @@ typedef enum
     STOP_LOW_LATENCY_FRAMES,
     SEND_FILE,
     SET_CHANNEL,
-    SET_RATE
+    SET_RATE,
+    SET_HOP_PARAMS,
 } serial_cmds_t;
 
 typedef enum
