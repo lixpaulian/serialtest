@@ -64,12 +64,6 @@ analyzer (uint8_t *data, size_t len)
         {
             latency = latency + 1000000 - frame->header.timestamp;
         }
-        // TODO: temporary debig message, to be removed
-        if (latency > 50000)
-        {
-            fprintf (stdout, "L: %d (local %d, remote %d)\n", latency,
-                     (uint32_t)(tp.tv_nsec / 1000), frame->header.timestamp);
-        }
         
         // store latency values
         g_stats[frame->header.src].latency_sum += latency;
