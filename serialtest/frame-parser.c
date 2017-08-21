@@ -270,6 +270,14 @@ send_frames (void *p)
             
             frame->header.magic = MAGIC;
             
+            if (!send_one_time)
+            {
+                frame->header.type = LOW_LATENCY;
+                frame->header.dest = dest_address;
+                memset (&frame->payload, 0x55, LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t));
+                count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
+            }
+            
             // compute frame's CRC
             uint16_t crc = calcCRC(0, send_buffer, count + sizeof (frame_hdr_t));
             send_buffer[count + sizeof (frame_hdr_t)] = (uint8_t) crc;
@@ -285,13 +293,6 @@ send_frames (void *p)
             if (send_one_time)
             {
                 send_one_time = false;
-            }
-            else
-            {
-                frame->header.type = LOW_LATENCY;
-                frame->header.dest = dest_address;
-                memset (&frame->payload, 0x55, LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t));
-                count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
             }
         }
         
@@ -350,6 +351,5 @@ send_f0_f1_frame (int fd, uint8_t *frame, int count)
     }
     fprintf (stdout, "\n");
 #endif
-
     return write (fd, send_buffer, count);
 }
