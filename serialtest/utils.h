@@ -48,5 +48,9 @@ own_address (get_set_cmd_t operation, uint8_t address);
 uint16_t
 calcCRC (uint16_t crc, uint8_t *buff, int len);
 
+bool
+cmd_data (int fd, bool state);
+
+
 
 #endif /* utils_h */

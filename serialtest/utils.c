@@ -29,6 +29,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <termios.h>
+#include <sys/ioctl.h>
 
 #include "utils.h"
 
@@ -76,3 +78,26 @@ calcCRC (uint16_t crc, uint8_t *buff, int len)
     return crc;
 }
 
+bool
+cmd_data (int fd, bool state)
+{
+    bool result = true;
+    
+    if (state)
+    {
+        // Assert Data Terminal Ready (DTR)
+        if (ioctl(fd, TIOCCDTR) == -1)
+        {
+            result = false;
+        }
+    }
+    else
+    {
+        // Clear Data Terminal Ready (DTR)
+        if (ioctl(fd, TIOCSDTR) == -1)
+        {
+            result = false;
+        }
+    }
+    return result;
+}
