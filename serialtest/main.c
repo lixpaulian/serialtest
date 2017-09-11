@@ -51,6 +51,9 @@ quit (void);
 static int
 handle_serial_line (int fd, bool print);
 
+static int
+locate_port (char *location, char* path, size_t len);
+
 
 
 // Main entry point.
@@ -60,18 +63,23 @@ main (int argc, char * argv[])
 {
     int ch;
     char *port = NULL;
+    char *address = NULL;
     int fd;
     struct termios options;
     int baudRate = 115200;
     
     signal (SIGINT, (void *) quit);	/* trap ctrl-c calls here */
     
-    while ((ch = getopt (argc, argv, "hvD:b:a:")) != -1)
+    while ((ch = getopt (argc, argv, "hvD:l:b:a:")) != -1)
     {
         switch (ch)
         {
             case 'D':
                 port = optarg;
+                break;
+                
+            case 'l':
+                address = optarg;
                 break;
                 
             case 'b':
@@ -89,15 +97,25 @@ main (int argc, char * argv[])
                 
             case 'h':
             default:
-                fprintf (stdout, "Usage: sertest -D <tty>\n");
+                fprintf (stdout, "Usage: sertest -D <tty>\n\tor sertest -l <usb_location_ID>\n");
+                fprintf (stdout, "\tother options: -b <baudrate>, -a <own_address>, -v, -h\n");
                 exit (EXIT_SUCCESS);
                 break;
         }
     }
     
+    char buff[200];
+    if (address != NULL)
+    {
+        if (locate_port (address, buff, sizeof (buff)) == true)
+        {
+            port = buff;
+        }
+    }
+
     if (port == NULL)
     {
-        fprintf (stdout, "Missing device (-D option)\n");
+        fprintf (stdout, "Missing device (-D or -p option required)\n");
         exit (EXIT_FAILURE);
     }
     
@@ -271,6 +289,116 @@ handle_serial_line (int fd, bool print)
         perror("serial port read");
         return 1;
     }
+}
+
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOKitLib.h>
+#include <IOKit/usb/IOUSBLib.h>
+#include <IOKit/IOBSD.h>
+#include <IOKit/IOMessage.h>
+#include <IOKit/serial/ioss.h>
+
+static int
+locate_port (char *location, char* path, size_t len)
+{
+    CFMutableDictionaryRef matchingDict;
+    io_iterator_t iter;
+    kern_return_t kr;
+    io_service_t device;
+    IOCFPlugInInterface **plugInInterface = NULL;
+    IOUSBDeviceInterface **dev = NULL;
+    SInt32 score;
+    HRESULT result;
+    UInt16 vendor;
+    UInt16 product;
+    UInt16 address;
+    int res = false;
+    uint32_t find_location;
+    
+    sscanf (location, "%x", &find_location);
+    
+    /* set up a matching dictionary for the class */
+    matchingDict = IOServiceMatching(kIOUSBDeviceClassName);
+    if (matchingDict == NULL)
+    {
+        return -1; // fail
+    }
+    
+    /* Now we have a dictionary, get an iterator.*/
+    kr = IOServiceGetMatchingServices(kIOMasterPortDefault, matchingDict, &iter);
+    if (kr != KERN_SUCCESS)
+    {
+        return -1;
+    }
+    
+    /* iterate */
+    while ((device = IOIteratorNext(iter)))
+    {
+        // Create an intermediate plug-in
+        kr = IOCreatePlugInInterfaceForService(device,
+                                               kIOUSBDeviceUserClientTypeID, kIOCFPlugInInterfaceID,
+                                               &plugInInterface, &score);
+        // Don’t need the device object after intermediate plug-in is created
+        if ((kIOReturnSuccess != kr) || !plugInInterface)
+        {
+            fprintf(stdout, "Unable to create a plug-in (%08x)\n", kr);
+            continue;
+        }
+        
+        // Now create the device interface
+        result = (*plugInInterface)->QueryInterface(plugInInterface,
+                                                    CFUUIDGetUUIDBytes(kIOUSBDeviceInterfaceID),
+                                                    (LPVOID *)&dev);
+        // Don’t need the intermediate plug-in after device interface is created
+        (*plugInInterface)->Release(plugInInterface);
+        
+        if (result || !dev)
+        {
+            fprintf(stdout, "Couldn’t create a device interface (%08x)\n", (int) result);
+            continue;
+        }
+        
+        uint32_t locationID;
+        
+        kr = (*dev)->GetDeviceVendor(dev, &vendor);
+        kr = (*dev)->GetDeviceProduct(dev, &product);
+        kr = (*dev)->GetDeviceAddress (dev, &address);
+        kr = (*dev)->GetLocationID(dev, &locationID);
+        
+        if ((vendor != 0x10c4) || (product != 0xea60))
+        {
+            // we look for Silicon Labs CP2102 chips only
+            (void) (*dev)->Release(dev);
+            continue;
+        }
+        
+        if (locationID == find_location)
+        {
+            CFStringRef deviceBSDName_cf;
+            deviceBSDName_cf = (CFStringRef) IORegistryEntrySearchCFProperty (device,
+                                                                              kIOServicePlane,
+                                                                              CFSTR (kIOCalloutDeviceKey),
+                                                                              kCFAllocatorDefault,
+                                                                              kIORegistryIterateRecursively);
+            result = CFStringGetCString(deviceBSDName_cf,
+                                        path,
+                                        len,
+                                        kCFStringEncodingUTF8);
+            
+            (void) (*dev)->Release(dev);
+            IOObjectRelease(device);
+            res = true;
+            break;
+        }
+        
+        (void) (*dev)->Release(dev);
+        IOObjectRelease(device);
+    }
+    
+    /* Done, release the iterator */
+    IOObjectRelease(iter);
+    
+    return res;
 }
 
 void
