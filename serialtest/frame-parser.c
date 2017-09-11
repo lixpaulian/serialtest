@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
+#include <termios.h>
 #include <sys/time.h>
 
 #include "utils.h"
@@ -38,6 +39,9 @@
 
 pthread_mutex_t send_serial_mutex = PTHREAD_MUTEX_INITIALIZER;
 ipc_t ipc;
+
+ssize_t
+send_command (int fd, uint8_t *command, size_t cmd_len, size_t max_len);
 
 
 //  @brief This function parses 0xf0/0xf1 (begin/end) type frames.
@@ -201,6 +205,12 @@ send_frames (void *p)
     uint8_t dest_address = 0;
     int count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
     
+    // set cmd/data line to data (true)
+    if (cmd_data(fd, true) == false)
+    {
+        fprintf (stdout, "Could not switch CMD/DATA line\n");
+    }
+    
     frame = (frame_t *) &send_buffer;
     frame->header.index = 0;
     frame->header.src = own_address(GET_PARAMETER, 0);
@@ -213,48 +223,47 @@ send_frames (void *p)
             switch (ipc.cmd)
             {
                 case SEND_LOW_LATENCY_FRAMES:
-                dest_address = ipc.address;
-                count = LOCAL_BUFFER_SIZE;
-                send_periodically = true;
-                break;
-                
-                case STOP_LOW_LATENCY_FRAMES:
-                send_periodically = false;
-                break;
-                
-                case SET_CHANNEL:
-                frame->header.dest = ipc.address;
-                frame->header.type = SET_RADIO_CHANNEL;
-                frame->payload[0] = (uint8_t) ipc.parameter;
-                count = 1;
-                send_one_time = true;
-                break;
-                
-                case SET_RATE:
-                frame->header.dest = ipc.address;
-                frame->header.type = SET_RADIO_RATE;
-                frame->payload[0] = (uint8_t) ipc.parameter;
-                count = 1;
-                send_one_time = true;
-                break;
-                
-                case SET_HOP_PARAMS:
-                cc_buffer[0] = 0xcc;
-                cc_buffer[1] = 0x67;    // set/get hop parameters
-                cc_buffer[2] = ipc.parameter & 0xff;
-                cc_buffer[3] = (ipc.parameter >> 8) & 0xff;
-                cc_buffer[4] = ipc.parameter1 & 0xff;
-                cc_buffer[5] = (ipc.parameter1 >> 8) & 0xff;
-                if (write (fd, cc_buffer, 6) < 0)
-                {
-                    perror("serial port write");
+                    dest_address = ipc.address;
+                    count = LOCAL_BUFFER_SIZE;
+                    send_periodically = true;
                     break;
-                }
-                break;
-                
+                    
+                case STOP_LOW_LATENCY_FRAMES:
+                    send_periodically = false;
+                    break;
+                    
+                case SET_CHANNEL:
+                    frame->header.dest = ipc.address;
+                    frame->header.type = SET_RADIO_CHANNEL;
+                    frame->payload[0] = (uint8_t) ipc.parameter;
+                    count = 1;
+                    send_one_time = true;
+                    break;
+                    
+                case SET_RATE:
+                    frame->header.dest = ipc.address;
+                    frame->header.type = SET_RADIO_RATE;
+                    frame->payload[0] = (uint8_t) ipc.parameter;
+                    count = 1;
+                    send_one_time = true;
+                    break;
+                    
+                case SET_HOP_PARAMS:
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x67;    // set/get hop parameters
+                    cc_buffer[2] = ipc.parameter & 0xff;
+                    cc_buffer[3] = (ipc.parameter >> 8) & 0xff;
+                    cc_buffer[4] = ipc.parameter1 & 0xff;
+                    cc_buffer[5] = (ipc.parameter1 >> 8) & 0xff;
+                    if (send_command (fd, cc_buffer, 6, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
+                    break;
+                    
                 default:
-                // unknown command
-                break;
+                    // unknown command
+                    break;
             }
             ipc.cmd = NOP;
         }
@@ -352,4 +361,22 @@ send_f0_f1_frame (int fd, uint8_t *frame, int count)
     fprintf (stdout, "\n");
 #endif
     return write (fd, send_buffer, count);
+}
+
+ssize_t
+send_command (int fd, uint8_t *command, size_t cmd_len, size_t max_len)
+{
+    ssize_t result;
+    struct timespec sts;
+    
+    sts.tv_nsec = 500000;   // 500 us
+    sts.tv_sec = 0;
+    
+    cmd_data(fd, false);    // cmd active
+    result = write (fd, command, cmd_len);
+    tcdrain (fd);           // wait for the transmission to finish
+    nanosleep (&sts, NULL); // add some more delay
+    cmd_data(fd, true);     // cmd inactive
+    
+    return result;
 }
