@@ -77,8 +77,10 @@ typedef enum
     STOP_LOW_LATENCY_FRAMES,
     SEND_FILE,
     SET_CHANNEL,
+    SET_MASTER,
     SET_RATE,
     SET_HOP_PARAMS,
+    SET_BAUD,
 } serial_cmds_t;
 
 typedef enum

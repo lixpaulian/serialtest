@@ -233,19 +233,33 @@ send_frames (void *p)
                     break;
                     
                 case SET_CHANNEL:
-                    frame->header.dest = ipc.address;
-                    frame->header.type = SET_RADIO_CHANNEL;
-                    frame->payload[0] = (uint8_t) ipc.parameter;
-                    count = 1;
-                    send_one_time = true;
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x02;    // set/get channel
+                    cc_buffer[2] = ipc.parameter & 0xff;
+                    if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
+                    break;
+                    
+                case SET_MASTER:
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x03;    // set/get channel
+                    cc_buffer[2] = ipc.parameter & 0xff;
+                    if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
                     break;
                     
                 case SET_RATE:
-                    frame->header.dest = ipc.address;
-                    frame->header.type = SET_RADIO_RATE;
-                    frame->payload[0] = (uint8_t) ipc.parameter;
-                    count = 1;
-                    send_one_time = true;
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x66;    // set/get bit rate
+                    cc_buffer[2] = ipc.parameter & 0xff;
+                    if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
                     break;
                     
                 case SET_HOP_PARAMS:
@@ -255,6 +269,19 @@ send_frames (void *p)
                     cc_buffer[3] = (ipc.parameter >> 8) & 0xff;
                     cc_buffer[4] = ipc.parameter1 & 0xff;
                     cc_buffer[5] = (ipc.parameter1 >> 8) & 0xff;
+                    if (send_command (fd, cc_buffer, 6, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
+                    break;
+                    
+                case SET_BAUD:
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x50;    // set baud rate
+                    cc_buffer[2] = ipc.parameter & 0xff;
+                    cc_buffer[3] = (ipc.parameter >> 8) & 0xff;
+                    cc_buffer[4] = (ipc.parameter >> 16) & 0xff;
+                    cc_buffer[5] = (ipc.parameter >> 24) & 0xff;
                     if (send_command (fd, cc_buffer, 6, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");

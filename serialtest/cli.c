@@ -65,6 +65,9 @@ static int
 send_cmd (int argc, char *argv[]);
 
 static int
+set_cmd (int argc, char *argv[]);
+
+static int
 quit_cmd (int argc, char *argv[]);
 
 static int
@@ -81,6 +84,7 @@ const cmds_t rxcmds[] =
     { "ver", getver, "Returns current version" },
     { "dump", dump_rec, "Switch on/off dumping of received frames" },
     { "send", send_cmd, "Send various types of frames over the serial port" },
+    { "set", set_cmd, "Set various parameters" },
     { "stat", stats_cmd, "Show/clear statistics" },
     { "quit", quit_cmd, "Quit program" },
     { "exit", quit_cmd, "Exit program" },
@@ -198,30 +202,65 @@ send_cmd (int argc, char *argv[])
             ipc.address = atoi (argv[1]);
             ipc.cmd = !strcasecmp (argv[2], "on") ? SEND_LOW_LATENCY_FRAMES : STOP_LOW_LATENCY_FRAMES;
         }
-        else if (!strcasecmp (argv[0], "ch"))
+        else
         {
-            ipc.address = atoi (argv[1]);
+            fprintf (stdout, "Invalid parameter\n");
+        }
+        pthread_mutex_unlock (&send_serial_mutex);
+    }
+    else
+    {
+        fprintf (stdout, "Usage:\tsend ll dest_addr { on | off }\n");
+    }
+    
+    return OK;
+}
+
+// Command to set certain parameters.
+static int
+set_cmd (int argc, char *argv[])
+{
+    if (argc > 1)
+    {
+        pthread_mutex_lock (&send_serial_mutex);
+        if (!strcasecmp (argv[0], "zch"))
+        {
             ipc.cmd = SET_CHANNEL;
-            ipc.parameter = atoi (argv[2]);
+            ipc.parameter = atoi (argv[1]) - 11;
+        }
+        else  if (!strcasecmp (argv[0], "master"))
+        {
+            ipc.cmd = SET_MASTER;
+            if (!strcasecmp (argv[1], "on"))
+            {
+                ipc.parameter = 0;
+            }
+            else if (!strcasecmp (argv[1], "off"))
+            {
+                ipc.parameter = 1;
+            }
+            else
+            {
+                fprintf (stdout, "Invalid parameter (on or off accepted)\n");
+            }
         }
         else if (!strcasecmp (argv[0], "rate"))
         {
-            ipc.address = atoi (argv[1]);
             ipc.cmd = SET_RATE;
             
-            if (!strcasecmp (argv[2], "100K"))
+            if (!strcasecmp (argv[1], "100K"))
             {
                 ipc.parameter = MOD_OQPSK_100K;
             }
-            else if (!strcasecmp (argv[2], "250K"))
+            else if (!strcasecmp (argv[1], "250K"))
             {
                 ipc.parameter = MOD_OQPSK_250K;
             }
-            else if (!strcasecmp (argv[2], "1M"))
+            else if (!strcasecmp (argv[1], "1M"))
             {
                 ipc.parameter = MOD_GFSK_1M;
             }
-            else if (!strcasecmp (argv[2], "2M"))
+            else if (!strcasecmp (argv[1], "2M"))
             {
                 ipc.parameter = MOD_GFSK_2M;
             }
@@ -243,6 +282,18 @@ send_cmd (int argc, char *argv[])
                 fprintf (stdout, "Insuficient arguments");
             }
         }
+        else if (!strcasecmp (argv[0], "baud"))
+        {
+            if (argc == 2)
+            {
+                ipc.cmd = SET_BAUD;
+                ipc.parameter = atoi (argv[1]);
+            }
+            else
+            {
+                fprintf (stdout, "Insuficient arguments");
+            }
+        }
         else
         {
             fprintf (stdout, "Invalid parameter\n");
@@ -251,11 +302,12 @@ send_cmd (int argc, char *argv[])
     }
     else
     {
-        fprintf (stdout, "Usage:\tsend ll dest_addr { on | off }\n");
+        fprintf (stdout, "Usage:\tset { zch | master | rate | hop | baud }\n");
     }
     
     return OK;
 }
+
 
 // Statistics related commands.
 static int
