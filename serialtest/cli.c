@@ -225,8 +225,16 @@ set_cmd (int argc, char *argv[])
         pthread_mutex_lock (&send_serial_mutex);
         if (!strcasecmp (argv[0], "zch"))
         {
-            ipc.cmd = SET_CHANNEL;
-            ipc.parameter = atoi (argv[1]) - 11;
+            int ch = atoi (argv[1]);
+            if (ch < 11 || ch > 26)
+            {
+                fprintf (stdout, "Invalid parameter (only channels 11 to 26 are accepted)\n");
+            }
+            else
+            {
+                ipc.cmd = SET_CHANNEL;
+                ipc.parameter = atoi (argv[1]) - 11;
+            }
         }
         else  if (!strcasecmp (argv[0], "master"))
         {
@@ -241,6 +249,7 @@ set_cmd (int argc, char *argv[])
             }
             else
             {
+                ipc.cmd = NOP;
                 fprintf (stdout, "Invalid parameter (on or off accepted)\n");
             }
         }
@@ -266,6 +275,7 @@ set_cmd (int argc, char *argv[])
             }
             else
             {
+                ipc.cmd = NOP;
                 fprintf (stdout, "Invalid data rate; valid values are 100K, 250K, 1M and 2M\n");
             }
         }
