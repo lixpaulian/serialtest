@@ -47,9 +47,8 @@ analyzer (uint8_t *data, size_t len)
     struct timespec tp;
     int lost_frames;
     
-    if (frame->header.magic == MAGIC &&
-        (frame->header.dest == BCAST_ADDRESS ||
-         frame->header.dest == own_address (GET_PARAMETER, 0)))
+    if (frame->header.dest == BCAST_ADDRESS ||
+         frame->header.dest == own_address (GET_PARAMETER, 0))
     {
         clock_gettime (CLOCK_MONOTONIC, &tp);
         uint32_t latency = (uint32_t) (tp.tv_nsec / 1000);

@@ -36,7 +36,6 @@
 #define EOF_CHAR 0xf1
 #define ESCAPE_CHAR 0xf2
 #define MAX_FRAME_LEN 240
-#define MAGIC 0xDEADBEEF
 
 typedef enum
 {
@@ -52,7 +51,6 @@ typedef struct
     uint8_t index;
     uint8_t type;
     uint32_t timestamp;
-    uint32_t magic;
 } frame_hdr_t;
 
 typedef struct

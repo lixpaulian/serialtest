@@ -194,7 +194,7 @@ extract_f0_f1_frame (uint8_t *buff, size_t len)
 void *
 send_frames (void *p)
 {
-#define LOCAL_BUFFER_SIZE 22
+#define LOCAL_BUFFER_SIZE 100
     int fd = *(int *) p;
     uint8_t send_buffer[LOCAL_BUFFER_SIZE + 2];    // +2 for CRC
     uint8_t cc_buffer[20];
@@ -203,6 +203,7 @@ send_frames (void *p)
     bool send_one_time = false;
     frame_t *frame;
     uint8_t dest_address = 0;
+    struct termios options;
     int count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
     
     // set cmd/data line to data (true)
@@ -276,8 +277,17 @@ send_frames (void *p)
                     break;
                     
                 case SET_BAUD:
+                    tcgetattr (fd, &options);
+                    cfsetispeed (&options, ipc.parameter);
+                    cfsetospeed (&options, ipc.parameter);
+
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x50;    // set baud rate
+                    if (ipc.parameter == 300)
+                    {
+                        // handle special case 300 baud which is aliased to 288000
+                        ipc.parameter = 288000;
+                    }
                     cc_buffer[2] = ipc.parameter & 0xff;
                     cc_buffer[3] = (ipc.parameter >> 8) & 0xff;
                     cc_buffer[4] = (ipc.parameter >> 16) & 0xff;
@@ -285,6 +295,10 @@ send_frames (void *p)
                     if (send_command (fd, cc_buffer, 6, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
+                    }
+                    if (tcsetattr (fd, TCSAFLUSH, &options) < 0)
+                    {
+                        fprintf (stdout, "Failed to set new baudrate\n");
                     }
                     break;
                     
@@ -303,8 +317,6 @@ send_frames (void *p)
             struct timespec tp;
             clock_gettime (CLOCK_MONOTONIC, &tp);
             frame->header.timestamp = (uint32_t) (tp.tv_nsec / 1000);
-            
-            frame->header.magic = MAGIC;
             
             if (!send_one_time)
             {
