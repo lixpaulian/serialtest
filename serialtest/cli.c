@@ -44,7 +44,7 @@
 typedef struct
 {
     char *name;
-    int (*func) ();
+    int (*func) (int, char**);
     char *help_string;
 } cmds_t;
 
