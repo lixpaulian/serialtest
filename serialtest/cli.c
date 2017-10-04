@@ -233,7 +233,7 @@ set_cmd (int argc, char *argv[])
             else
             {
                 ipc.cmd = SET_CHANNEL;
-                ipc.parameter = atoi (argv[1]) - 11;
+                ipc.parameter = ch - 11;
             }
         }
         else  if (!strcasecmp (argv[0], "master"))
@@ -303,6 +303,12 @@ set_cmd (int argc, char *argv[])
             {
                 fprintf (stdout, "Insuficient arguments");
             }
+        }
+        else if (!strcasecmp (argv[0], "slot"))
+        {
+            int slot = atoi (argv[1]);
+            ipc.cmd = SET_SLOT;
+            ipc.parameter = slot &0x1F;
         }
         else
         {
