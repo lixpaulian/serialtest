@@ -194,7 +194,9 @@ extract_f0_f1_frame (uint8_t *buff, size_t len)
 void *
 send_frames (void *p)
 {
-#define LOCAL_BUFFER_SIZE 100
+    /* note: the frame is 90 bytes long + 2 bytes CRC. This is close to the maximum permissible
+     for a 3.5 ms frame at 250 Kbps OQPSK (e.g. ZigBee) */
+#define LOCAL_BUFFER_SIZE 90
     int fd = *(int *) p;
     uint8_t send_buffer[LOCAL_BUFFER_SIZE + 2];    // +2 for CRC
     uint8_t cc_buffer[20];
@@ -302,6 +304,16 @@ send_frames (void *p)
                     }
                     break;
                     
+                case SET_SLOT:
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x81;    // set/get slots
+                    cc_buffer[2] = ipc.parameter & 0xff;
+                    if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
+                    break;
+                    
                 default:
                     // unknown command
                     break;
@@ -344,7 +356,7 @@ send_frames (void *p)
             }
         }
         
-        sts.tv_nsec = 8000000 + own_address(GET_PARAMETER, 0) * 1000000; // ~10 ms
+        sts.tv_nsec = 22000000; // 22 ms
         sts.tv_sec = 0;
         nanosleep (&sts, NULL);
     }

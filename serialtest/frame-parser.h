@@ -79,6 +79,7 @@ typedef enum
     SET_RATE,
     SET_HOP_PARAMS,
     SET_BAUD,
+    SET_SLOT,
 } serial_cmds_t;
 
 typedef enum
