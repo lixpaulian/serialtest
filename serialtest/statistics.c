@@ -93,8 +93,16 @@ analyzer (uint8_t *data, size_t len)
         g_stats[frame->header.src].last_index = frame->header.index;
         
         // store rssi value
-        g_stats[frame->header.src].rssi_sum += data[len - 1];
-        g_stats[frame->header.src].rssi_samples++;
+        if ( g_stats[frame->header.src].rssi_samples > 10)
+        {
+            g_stats[frame->header.src].rssi_sum = data[len - 1];
+            g_stats[frame->header.src].rssi_samples = 1;
+        }
+        else
+        {
+            g_stats[frame->header.src].rssi_sum += data[len - 1];
+            g_stats[frame->header.src].rssi_samples++;
+        }
         
         // handle specific frames
         switch (frame->header.type)
