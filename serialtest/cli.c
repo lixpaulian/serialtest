@@ -289,7 +289,7 @@ set_cmd (int argc, char *argv[])
             }
             else
             {
-                fprintf (stdout, "Insuficient arguments");
+                fprintf (stdout, "Insuficient arguments\n");
             }
         }
         else if (!strcasecmp (argv[0], "baud"))
@@ -301,7 +301,7 @@ set_cmd (int argc, char *argv[])
             }
             else
             {
-                fprintf (stdout, "Insuficient arguments");
+                fprintf (stdout, "Insuficient arguments\n");
             }
         }
         else if (!strcasecmp (argv[0], "slot"))
@@ -310,7 +310,38 @@ set_cmd (int argc, char *argv[])
             ipc.cmd = SET_SLOT;
             ipc.parameter = slot &0x1F;
         }
-        else
+        else if (!strcasecmp (argv[0], "bw"))
+        {
+            if (argc == 3)
+            {
+                int bw = 0;
+                if (!strcasecmp (argv[1], "250K"))
+                {
+                    bw = 1;
+                }
+                else if (!strcasecmp (argv[1], "1M"))
+                {
+                    bw = 2;
+                }
+                else if (!strcasecmp (argv[1], "2M"))
+                {
+                    bw = 3;
+                }
+                else
+                {
+                    fprintf (stdout, "<bw>: 250K, 1M, 2M; <slot> 1 to 5\n");
+                }
+                ipc.cmd = SET_BW;
+                int which = atoi (argv[2]);
+                ipc.parameter = bw + ((which << 4) & 0x70);
+            }
+            else
+            {
+                fprintf (stdout, "Insuficient arguments (set bw <bw> <slot>\n");
+                fprintf (stdout, "<bw>: 250K, 1M, 2M; <slot> 1 to 5\n");
+            }
+         }
+       else
         {
             fprintf (stdout, "Invalid parameter\n");
         }
