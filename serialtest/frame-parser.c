@@ -313,7 +313,17 @@ send_frames (void *p)
                         perror("send command:");
                     }
                     break;
-                    
+ 
+                case SET_BW:
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x82;    // set bandwidth
+                    cc_buffer[2] = ipc.parameter & 0xff;
+                    if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
+                    break;
+
                 default:
                     // unknown command
                     break;
