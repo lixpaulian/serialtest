@@ -34,7 +34,7 @@
 #include <stdlib.h>
 #include <termios.h>
 #include <fcntl.h>
-#include <sys/select.h>
+#include <sys/_select.h>
 #include <pthread.h>
 
 #include "frame-parser.h"
