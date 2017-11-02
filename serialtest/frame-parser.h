@@ -73,6 +73,7 @@ typedef enum
     NOP,
     SEND_LOW_LATENCY_FRAMES,
     STOP_LOW_LATENCY_FRAMES,
+    INTERVAL,
     SEND_FILE,
     SET_CHANNEL,
     SET_MASTER,
@@ -81,6 +82,7 @@ typedef enum
     SET_BAUD,
     SET_SLOT,
     SET_BW,
+    SET_PROTOCOL,
 } serial_cmds_t;
 
 typedef enum

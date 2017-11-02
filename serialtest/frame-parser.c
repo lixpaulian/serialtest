@@ -207,6 +207,7 @@ send_frames (void *p)
     uint8_t dest_address = 0;
     struct termios options;
     int count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
+    int interval = 20; // ms
     
     // set cmd/data line to data (true)
     if (cmd_data(fd, true) == false)
@@ -234,6 +235,11 @@ send_frames (void *p)
                 case STOP_LOW_LATENCY_FRAMES:
                     send_periodically = false;
                     break;
+                    
+                case INTERVAL:
+                    interval = ipc.parameter;
+                    break;
+                    
                     
                 case SET_CHANNEL:
                     cc_buffer[0] = 0xcc;
@@ -324,6 +330,16 @@ send_frames (void *p)
                     }
                     break;
 
+                case SET_PROTOCOL:
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x80;    // set protocol
+                    cc_buffer[2] = ipc.parameter & 1;
+                    if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
+                    break;
+
                 default:
                     // unknown command
                     break;
@@ -366,7 +382,7 @@ send_frames (void *p)
             }
         }
         
-        sts.tv_nsec = 22000000; // 22 ms
+        sts.tv_nsec = interval * 1000000;
         sts.tv_sec = 0;
         nanosleep (&sts, NULL);
     }
