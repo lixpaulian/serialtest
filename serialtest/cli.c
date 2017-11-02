@@ -65,6 +65,9 @@ static int
 send_cmd (int argc, char *argv[]);
 
 static int
+interval_cmd (int argc, char *argv[]);
+
+static int
 set_cmd (int argc, char *argv[]);
 
 static int
@@ -84,6 +87,7 @@ const cmds_t rxcmds[] =
     { "ver", getver, "Returns current version" },
     { "dump", dump_rec, "Switch on/off dumping of received frames" },
     { "send", send_cmd, "Send various types of frames over the serial port" },
+    { "interval", interval_cmd, "Set the interval between low latency frames" },
     { "set", set_cmd, "Set various parameters" },
     { "stat", stats_cmd, "Show/clear statistics" },
     { "quit", quit_cmd, "Quit program" },
@@ -196,21 +200,48 @@ send_cmd (int argc, char *argv[])
 {
     if (argc > 2)
     {
-        pthread_mutex_lock (&send_serial_mutex);
         if (!strcasecmp (argv[0], "ll"))   // send low latency frames
         {
+            pthread_mutex_lock (&send_serial_mutex);
             ipc.address = atoi (argv[1]);
             ipc.cmd = !strcasecmp (argv[2], "on") ? SEND_LOW_LATENCY_FRAMES : STOP_LOW_LATENCY_FRAMES;
+            pthread_mutex_unlock (&send_serial_mutex);
         }
         else
         {
             fprintf (stdout, "Invalid parameter\n");
         }
-        pthread_mutex_unlock (&send_serial_mutex);
     }
     else
     {
         fprintf (stdout, "Usage:\tsend ll dest_addr { on | off }\n");
+    }
+    
+    return OK;
+}
+
+// Set the interval between low latency frames.
+static int
+interval_cmd (int argc, char *argv[])
+{
+    if (argc > 0)
+    {
+        int value = atoi (argv[0]);
+        if (value > 5 && value < 100)
+        {
+            pthread_mutex_lock (&send_serial_mutex);
+            ipc.cmd = INTERVAL;
+            ipc.parameter = value;
+            pthread_mutex_unlock (&send_serial_mutex);
+        }
+        else
+        {
+            fprintf (stdout, "Invalid parameter, should be between 5 and 100 (ms)\n");
+        }
+    }
+    else
+    {
+        fprintf (stdout, "Usage:\tinterval <nn>\n");
     }
     
     return OK;
@@ -257,11 +288,7 @@ set_cmd (int argc, char *argv[])
         {
             ipc.cmd = SET_RATE;
             
-            if (!strcasecmp (argv[1], "100K"))
-            {
-                ipc.parameter = MOD_OQPSK_100K;
-            }
-            else if (!strcasecmp (argv[1], "250K"))
+            if (!strcasecmp (argv[1], "250K"))
             {
                 ipc.parameter = MOD_OQPSK_250K;
             }
@@ -276,7 +303,7 @@ set_cmd (int argc, char *argv[])
             else
             {
                 ipc.cmd = NOP;
-                fprintf (stdout, "Invalid data rate; valid values are 100K, 250K, 1M and 2M\n");
+                fprintf (stdout, "Invalid data rate; valid values are 250K, 1M and 2M\n");
             }
         }
         else if (!strcasecmp (argv[0], "hop"))
@@ -304,6 +331,23 @@ set_cmd (int argc, char *argv[])
                 fprintf (stdout, "Insuficient arguments\n");
             }
         }
+        else if (!strcasecmp (argv[0], "proto"))
+        {
+            if (!strcasecmp (argv[1], "on"))
+            {
+                ipc.parameter = 1;
+                ipc.cmd = SET_PROTOCOL;
+            }
+            else if (!strcasecmp (argv[1], "off"))
+            {
+                ipc.parameter = 0;
+                ipc.cmd = SET_PROTOCOL;
+            }
+            else
+            {
+                fprintf (stdout, "Invalid parameter\n");
+            }
+        }
         else if (!strcasecmp (argv[0], "slot"))
         {
             int slot = atoi (argv[1]);
@@ -315,15 +359,15 @@ set_cmd (int argc, char *argv[])
             if (argc == 3)
             {
                 int bw = 0;
-                if (!strcasecmp (argv[1], "250K"))
+                if (!strcasecmp (argv[2], "250K"))
                 {
                     bw = 1;
                 }
-                else if (!strcasecmp (argv[1], "1M"))
+                else if (!strcasecmp (argv[2], "1M"))
                 {
                     bw = 2;
                 }
-                else if (!strcasecmp (argv[1], "2M"))
+                else if (!strcasecmp (argv[2], "2M"))
                 {
                     bw = 3;
                 }
@@ -332,13 +376,13 @@ set_cmd (int argc, char *argv[])
                     fprintf (stdout, "<bw>: 250K, 1M, 2M; <slot> 1 to 5\n");
                 }
                 ipc.cmd = SET_BW;
-                int which = atoi (argv[2]);
+                int which = atoi (argv[1]);
                 ipc.parameter = bw + ((which << 4) & 0x70);
             }
             else
             {
-                fprintf (stdout, "Insuficient arguments (set bw <bw> <slot>\n");
-                fprintf (stdout, "<bw>: 250K, 1M, 2M; <slot> 1 to 5\n");
+                fprintf (stdout, "Insuficient arguments (set bw <slot> <bw>\n");
+                fprintf (stdout, "<slot> 1 to 5; <bw>: 250K, 1M, 2M\n");
             }
          }
        else
@@ -349,7 +393,7 @@ set_cmd (int argc, char *argv[])
     }
     else
     {
-        fprintf (stdout, "Usage:\tset { zch | master | rate | hop | baud }\n");
+        fprintf (stdout, "Usage:\tset { zch | master | rate | hop | baud | proto | bw }\n");
     }
     
     return OK;
