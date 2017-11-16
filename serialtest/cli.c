@@ -360,7 +360,7 @@ set_cmd (int argc, char *argv[])
                     fprintf (stdout, "<slot#> can be from 0 to 4\n");
                     break;
                 }
-                ipc.parameter |= (1 << (4 - slot));
+                ipc.parameter |= (1 << slot);
             }
             if (i == argc)
             {
