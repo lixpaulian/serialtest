@@ -350,9 +350,22 @@ set_cmd (int argc, char *argv[])
         }
         else if (!strcasecmp (argv[0], "slot"))
         {
-            int slot = atoi (argv[1]);
-            ipc.cmd = SET_SLOT;
-            ipc.parameter = slot &0x1F;
+            int slot, i;
+            ipc.parameter = 0;
+            for (i = 1; i < argc; i++)
+            {
+                slot = atoi (argv[i]);
+                if (slot > 4)
+                {
+                    fprintf (stdout, "<slot#> can be from 0 to 4\n");
+                    break;
+                }
+                ipc.parameter |= (1 << (4 - slot));
+            }
+            if (i == argc)
+            {
+                ipc.cmd = SET_SLOT;
+            }
         }
         else if (!strcasecmp (argv[0], "bw"))
         {
@@ -373,16 +386,23 @@ set_cmd (int argc, char *argv[])
                 }
                 else
                 {
-                    fprintf (stdout, "<bw>: 250K, 1M, 2M; <slot> 1 to 5\n");
+                    fprintf (stdout, "bw can be one of: 250K, 1M, 2M");
                 }
-                ipc.cmd = SET_BW;
                 int which = atoi (argv[1]);
-                ipc.parameter = bw + ((which << 4) & 0x70);
+                if (which > 4)
+                {
+                    fprintf (stdout, "<slot#> can be from 0 to 4\n");
+                }
+                else
+                {
+                    ipc.parameter = bw + ((which << 4) & 0x70);
+                    ipc.cmd = SET_BW;
+                }
             }
             else
             {
                 fprintf (stdout, "Insuficient arguments (set bw <slot> <bw>\n");
-                fprintf (stdout, "<slot> 1 to 5; <bw>: 250K, 1M, 2M\n");
+                fprintf (stdout, "<slot#> 0 to 4; <bw>: 250K, 1M, 2M\n");
             }
          }
        else
@@ -393,7 +413,7 @@ set_cmd (int argc, char *argv[])
     }
     else
     {
-        fprintf (stdout, "Usage:\tset { zch | master | rate | hop | baud | proto | bw }\n");
+        fprintf (stdout, "Usage:\tset { zch | master | rate | hop | baud | proto | bw | slot }\n");
     }
     
     return OK;

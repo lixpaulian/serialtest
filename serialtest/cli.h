@@ -29,8 +29,8 @@
 #define cli_h
 
 
-#define VERSION_MAJOR 0
-#define VERSION_MINOR 91
+#define VERSION_MAJOR 1
+#define VERSION_MINOR 0
 
 
 int
