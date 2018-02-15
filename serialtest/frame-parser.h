@@ -2,7 +2,7 @@
 //  frame-parser.h
 //  serialtest
 //
-//  Copyright (c) 2017 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017, 2018 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -78,6 +78,7 @@ typedef enum
     SET_CHANNEL,
     SET_MASTER,
     SET_RATE,
+    SET_REGION,
     SET_HOP_PARAMS,
     SET_BAUD,
     SET_SLOT,

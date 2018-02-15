@@ -2,7 +2,7 @@
 //  frame-parser.c
 //  serialtest
 //
-//  Copyright (c) 2017 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017, 2018 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -323,6 +323,16 @@ send_frames (void *p)
                 case SET_BW:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x82;    // set bandwidth
+                    cc_buffer[2] = ipc.parameter & 0xff;
+                    if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
+                    break;
+                    
+                case SET_REGION:
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x60;    // get/set region
                     cc_buffer[2] = ipc.parameter & 0xff;
                     if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
                     {

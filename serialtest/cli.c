@@ -251,171 +251,219 @@ interval_cmd (int argc, char *argv[])
 static int
 set_cmd (int argc, char *argv[])
 {
+    struct timespec sts;
+    int region = 0;
+    
     if (argc > 1)
     {
-        pthread_mutex_lock (&send_serial_mutex);
-        if (!strcasecmp (argv[0], "zch"))
+        int rounds = 0;
+        do
         {
-            int ch = atoi (argv[1]);
-            if (ch < 11 || ch > 26)
+            pthread_mutex_lock (&send_serial_mutex);
+            if (!strcasecmp (argv[0], "zch"))
             {
-                fprintf (stdout, "Invalid parameter (only channels 11 to 26 are accepted)\n");
+                if (argc == 3)
+                {
+                    rounds = atoi (argv[2]);
+                    argc = 10;  // kludge!
+                }
+
+                int ch = atoi (argv[1]);
+                if (ch < 11 || ch > 26)
+                {
+                    fprintf (stdout, "Invalid parameter (only channels 11 to 26 are accepted)\n");
+                }
+                else
+                {
+                    ipc.cmd = SET_CHANNEL;
+                    ipc.parameter = ch - 11;
+                }
+                sts.tv_nsec = 20000000;
+                sts.tv_sec = 0;
+                nanosleep (&sts, NULL);
             }
-            else
+            else  if (!strcasecmp (argv[0], "master"))
             {
-                ipc.cmd = SET_CHANNEL;
-                ipc.parameter = ch - 11;
+                ipc.cmd = SET_MASTER;
+                if (!strcasecmp (argv[1], "on"))
+                {
+                    ipc.parameter = 0;
+                }
+                else if (!strcasecmp (argv[1], "off"))
+                {
+                    ipc.parameter = 1;
+                }
+                else
+                {
+                    ipc.cmd = NOP;
+                    fprintf (stdout, "Invalid parameter (on or off accepted)\n");
+                }
             }
-        }
-        else  if (!strcasecmp (argv[0], "master"))
-        {
-            ipc.cmd = SET_MASTER;
-            if (!strcasecmp (argv[1], "on"))
+            else if (!strcasecmp (argv[0], "rate"))
             {
+                ipc.cmd = SET_RATE;
+                
+                if (!strcasecmp (argv[1], "250K"))
+                {
+                    ipc.parameter = MOD_OQPSK_250K;
+                }
+                else if (!strcasecmp (argv[1], "1M"))
+                {
+                    ipc.parameter = MOD_GFSK_1M;
+                }
+                else if (!strcasecmp (argv[1], "2M"))
+                {
+                    ipc.parameter = MOD_GFSK_2M;
+                }
+                else
+                {
+                    ipc.cmd = NOP;
+                    fprintf (stdout, "Invalid data rate; valid values are 250K, 1M and 2M\n");
+                }
+            }
+            else  if (!strcasecmp (argv[0], "region"))
+            {
+                if (argc == 3)
+                {
+                    rounds = atoi (argv[2]);
+                    argc = 10;  // kludge!
+                }
+                if (argc == 10)
+                {
+                    if (++region > 19)
+                    {
+                        region = 0;
+                    }
+                }
+                else
+                {
+                    region = atoi (argv[1]);
+                }
+                if (region < 20)
+                {
+                    ipc.cmd = SET_REGION;
+                    ipc.parameter = region;
+                }
+                else
+                {
+                    fprintf (stdout, "Invalid region\n");
+                }
+                sts.tv_nsec = 100000000;
+                sts.tv_sec = 0;
+                nanosleep (&sts, NULL);
+            }
+            else if (!strcasecmp (argv[0], "hop"))
+            {
+                if (argc == 3)
+                {
+                    ipc.cmd = SET_HOP_PARAMS;
+                    ipc.parameter = atoi (argv[1]);
+                    ipc.parameter1 = atoi (argv[2]);
+                }
+                else
+                {
+                    fprintf (stdout, "Insuficient arguments\n");
+                }
+            }
+            else if (!strcasecmp (argv[0], "baud"))
+            {
+                if (argc == 2)
+                {
+                    ipc.cmd = SET_BAUD;
+                    ipc.parameter = atoi (argv[1]);
+                }
+                else
+                {
+                    fprintf (stdout, "Insuficient arguments\n");
+                }
+            }
+            else if (!strcasecmp (argv[0], "proto"))
+            {
+                if (!strcasecmp (argv[1], "on"))
+                {
+                    ipc.parameter = 1;
+                    ipc.cmd = SET_PROTOCOL;
+                }
+                else if (!strcasecmp (argv[1], "off"))
+                {
+                    ipc.parameter = 0;
+                    ipc.cmd = SET_PROTOCOL;
+                }
+                else
+                {
+                    fprintf (stdout, "Invalid parameter\n");
+                }
+            }
+            else if (!strcasecmp (argv[0], "slot"))
+            {
+                int slot, i;
                 ipc.parameter = 0;
+                for (i = 1; i < argc; i++)
+                {
+                    slot = atoi (argv[i]);
+                    if (slot > 4)
+                    {
+                        fprintf (stdout, "<slot#> can be from 0 to 4\n");
+                        break;
+                    }
+                    ipc.parameter |= (1 << slot);
+                }
+                if (i == argc)
+                {
+                    ipc.cmd = SET_SLOT;
+                }
             }
-            else if (!strcasecmp (argv[1], "off"))
+            else if (!strcasecmp (argv[0], "bw"))
             {
-                ipc.parameter = 1;
-            }
-            else
-            {
-                ipc.cmd = NOP;
-                fprintf (stdout, "Invalid parameter (on or off accepted)\n");
-            }
-        }
-        else if (!strcasecmp (argv[0], "rate"))
-        {
-            ipc.cmd = SET_RATE;
-            
-            if (!strcasecmp (argv[1], "250K"))
-            {
-                ipc.parameter = MOD_OQPSK_250K;
-            }
-            else if (!strcasecmp (argv[1], "1M"))
-            {
-                ipc.parameter = MOD_GFSK_1M;
-            }
-            else if (!strcasecmp (argv[1], "2M"))
-            {
-                ipc.parameter = MOD_GFSK_2M;
-            }
-            else
-            {
-                ipc.cmd = NOP;
-                fprintf (stdout, "Invalid data rate; valid values are 250K, 1M and 2M\n");
-            }
-        }
-        else if (!strcasecmp (argv[0], "hop"))
-        {
-            if (argc == 3)
-            {
-                ipc.cmd = SET_HOP_PARAMS;
-                ipc.parameter = atoi (argv[1]);
-                ipc.parameter1 = atoi (argv[2]);
-            }
-            else
-            {
-                fprintf (stdout, "Insuficient arguments\n");
-            }
-        }
-        else if (!strcasecmp (argv[0], "baud"))
-        {
-            if (argc == 2)
-            {
-                ipc.cmd = SET_BAUD;
-                ipc.parameter = atoi (argv[1]);
-            }
-            else
-            {
-                fprintf (stdout, "Insuficient arguments\n");
-            }
-        }
-        else if (!strcasecmp (argv[0], "proto"))
-        {
-            if (!strcasecmp (argv[1], "on"))
-            {
-                ipc.parameter = 1;
-                ipc.cmd = SET_PROTOCOL;
-            }
-            else if (!strcasecmp (argv[1], "off"))
-            {
-                ipc.parameter = 0;
-                ipc.cmd = SET_PROTOCOL;
+                if (argc == 3)
+                {
+                    int bw = 0;
+                    if (!strcasecmp (argv[2], "250K"))
+                    {
+                        bw = 1;
+                    }
+                    else if (!strcasecmp (argv[2], "1M"))
+                    {
+                        bw = 2;
+                    }
+                    else if (!strcasecmp (argv[2], "2M"))
+                    {
+                        bw = 3;
+                    }
+                    else
+                    {
+                        fprintf (stdout, "bw can be one of: 250K, 1M, 2M");
+                    }
+                    int which = atoi (argv[1]);
+                    if (which > 4)
+                    {
+                        fprintf (stdout, "<slot#> can be from 0 to 4\n");
+                    }
+                    else
+                    {
+                        ipc.parameter = bw + ((which << 4) & 0x70);
+                        ipc.cmd = SET_BW;
+                    }
+                }
+                else
+                {
+                    fprintf (stdout, "Insuficient arguments (set bw <slot> <bw>\n");
+                    fprintf (stdout, "<slot#> 0 to 4; <bw>: 250K, 1M, 2M\n");
+                }
             }
             else
             {
                 fprintf (stdout, "Invalid parameter\n");
             }
+            pthread_mutex_unlock (&send_serial_mutex);
         }
-        else if (!strcasecmp (argv[0], "slot"))
-        {
-            int slot, i;
-            ipc.parameter = 0;
-            for (i = 1; i < argc; i++)
-            {
-                slot = atoi (argv[i]);
-                if (slot > 4)
-                {
-                    fprintf (stdout, "<slot#> can be from 0 to 4\n");
-                    break;
-                }
-                ipc.parameter |= (1 << slot);
-            }
-            if (i == argc)
-            {
-                ipc.cmd = SET_SLOT;
-            }
-        }
-        else if (!strcasecmp (argv[0], "bw"))
-        {
-            if (argc == 3)
-            {
-                int bw = 0;
-                if (!strcasecmp (argv[2], "250K"))
-                {
-                    bw = 1;
-                }
-                else if (!strcasecmp (argv[2], "1M"))
-                {
-                    bw = 2;
-                }
-                else if (!strcasecmp (argv[2], "2M"))
-                {
-                    bw = 3;
-                }
-                else
-                {
-                    fprintf (stdout, "bw can be one of: 250K, 1M, 2M");
-                }
-                int which = atoi (argv[1]);
-                if (which > 4)
-                {
-                    fprintf (stdout, "<slot#> can be from 0 to 4\n");
-                }
-                else
-                {
-                    ipc.parameter = bw + ((which << 4) & 0x70);
-                    ipc.cmd = SET_BW;
-                }
-            }
-            else
-            {
-                fprintf (stdout, "Insuficient arguments (set bw <slot> <bw>\n");
-                fprintf (stdout, "<slot#> 0 to 4; <bw>: 250K, 1M, 2M\n");
-            }
-         }
-       else
-        {
-            fprintf (stdout, "Invalid parameter\n");
-        }
-        pthread_mutex_unlock (&send_serial_mutex);
+        while (rounds--);
     }
     else
     {
-        fprintf (stdout, "Usage:\tset { zch | master | rate | hop | baud | proto | bw | slot }\n");
+        fprintf (stdout, "Usage:\tset { zch | master | rate | hop | region | baud | proto | bw | slot }\n");
     }
-    
+     
     return OK;
 }
 
