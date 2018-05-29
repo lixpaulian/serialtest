@@ -198,13 +198,30 @@ dump_rec (int argc, char *argv[])
 static int
 send_cmd (int argc, char *argv[])
 {
-    if (argc > 2)
+    if (argc > 0)
     {
-        if (!strcasecmp (argv[0], "ll"))   // send low latency frames
+        if (!strcasecmp (argv[0], "off"))
         {
+            // stop sending low latency frames
+            pthread_mutex_lock (&send_serial_mutex);
+            ipc.cmd = STOP_LOW_LATENCY_FRAMES;
+            pthread_mutex_unlock (&send_serial_mutex);
+        }
+        else if (!strcasecmp (argv[0], "ll") && (argc > 1))
+        {
+            // send low latency frames
             pthread_mutex_lock (&send_serial_mutex);
             ipc.address = atoi (argv[1]);
-            ipc.cmd = !strcasecmp (argv[2], "on") ? SEND_LOW_LATENCY_FRAMES : STOP_LOW_LATENCY_FRAMES;
+            ipc.cmd =  SEND_LOW_LATENCY_FRAMES;
+            pthread_mutex_unlock (&send_serial_mutex);
+        }
+        else if (!strcasecmp (argv[0], "llh") && (argc > 2))
+        {
+            // send ll frames with header
+            pthread_mutex_lock (&send_serial_mutex);
+            ipc.address = atoi (argv[1]);
+            ipc.cmd = SEND_LOW_LATENCY_FRAMES_WITH_HEADER;
+            ipc.parameter = atoi (argv[2]);
             pthread_mutex_unlock (&send_serial_mutex);
         }
         else
@@ -214,7 +231,10 @@ send_cmd (int argc, char *argv[])
     }
     else
     {
-        fprintf (stdout, "Usage:\tsend ll dest_addr { on | off }\n");
+        fprintf (stdout, "Usage:\tsend ll dest_addr\n"
+                 "\tsend llh dest_addr slot_number\n"
+                 "\tsend off\n"
+                 "\tdest_addr 0...255, slot_number 0...4\n");
     }
     
     return OK;

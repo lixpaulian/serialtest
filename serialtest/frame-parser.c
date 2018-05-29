@@ -196,7 +196,7 @@ send_frames (void *p)
 {
     /* note: the frame is 90 bytes long + 2 bytes CRC. This is close to the maximum permissible
      for a 3.5 ms frame at 250 Kbps OQPSK (e.g. ZigBee) */
-#define LOCAL_BUFFER_SIZE 90
+#define LOCAL_BUFFER_SIZE 20 //90
     int fd = *(int *) p;
     uint8_t send_buffer[LOCAL_BUFFER_SIZE + 2];    // +2 for CRC
     uint8_t cc_buffer[20];
@@ -208,6 +208,7 @@ send_frames (void *p)
     struct termios options;
     int count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
     int interval = 20; // ms
+    uint8_t header = 0;
     
     // set cmd/data line to data (true)
     if (cmd_data(fd, true) == false)
@@ -227,9 +228,11 @@ send_frames (void *p)
             switch (ipc.cmd)
             {
                 case SEND_LOW_LATENCY_FRAMES:
+                case SEND_LOW_LATENCY_FRAMES_WITH_HEADER:
                     dest_address = ipc.address;
                     count = LOCAL_BUFFER_SIZE;
                     send_periodically = true;
+                    header = (ipc.cmd == SEND_LOW_LATENCY_FRAMES ? 255 : ipc.parameter);
                     break;
                     
                 case STOP_LOW_LATENCY_FRAMES:
@@ -380,7 +383,7 @@ send_frames (void *p)
             send_buffer[count + sizeof (frame_hdr_t) + 1] = (uint8_t) (crc >> 8) & 0xFF;
             
             count += 2;
-            if (send_f0_f1_frame (fd, send_buffer, count + sizeof (frame_hdr_t)) < 0)
+            if (send_f0_f1_frame (fd, send_buffer, count + sizeof (frame_hdr_t), header) < 0)
             {
                 perror("serial port write");
                 break;
@@ -402,12 +405,17 @@ send_frames (void *p)
 
 
 ssize_t
-send_f0_f1_frame (int fd, uint8_t *frame, int count)
+send_f0_f1_frame (int fd, uint8_t *frame, int count, uint8_t header)
 {
     uint8_t send_buffer[MAX_FRAME_LEN];
     uint8_t *p = send_buffer;
     int i;
+    ssize_t result;
     
+    if (header < 255)
+    {
+        p += 4; // leave some space for the header
+    }
     *p++ = SOF_CHAR;
     
     for (i = 0; i < count; i++)
@@ -439,6 +447,15 @@ send_f0_f1_frame (int fd, uint8_t *frame, int count)
     *p++ = EOF_CHAR;
     count = (int) (p - send_buffer);
     
+    if (header < 255)
+    {
+        // special handling of frames with header
+        send_buffer[0] = 0xDD;  // start of frame
+        send_buffer[1] = 1;     // frame type (for testing only)
+        send_buffer[2] = header;    // slot number
+        send_buffer[3] = count - 4; // payload len
+    }
+    
 #if SERIAL_DEBUG == 1
     fprintf (stdout, "sent %d bytes, ", count);
     for (int i = 0; i < count; i++)
@@ -447,7 +464,10 @@ send_f0_f1_frame (int fd, uint8_t *frame, int count)
     }
     fprintf (stdout, "\n");
 #endif
-    return write (fd, send_buffer, count);
+    result = write (fd, send_buffer, count);
+    tcdrain (fd);           // wait for the transmission to finish
+    
+    return result;
 }
 
 ssize_t

@@ -72,6 +72,7 @@ typedef enum
 {
     NOP,
     SEND_LOW_LATENCY_FRAMES,
+    SEND_LOW_LATENCY_FRAMES_WITH_HEADER,
     STOP_LOW_LATENCY_FRAMES,
     INTERVAL,
     SEND_FILE,
@@ -114,7 +115,7 @@ void *
 send_frames (void *p);
 
 ssize_t
-send_f0_f1_frame (int fd, uint8_t *frame, int count);
+send_f0_f1_frame (int fd, uint8_t *frame, int count, uint8_t header);
 
 int
 extract_f0_f1_frame (uint8_t *buff, size_t len);
