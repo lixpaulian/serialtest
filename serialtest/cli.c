@@ -2,7 +2,7 @@
 //  cli.c
 //  serialtest
 //
-//  Copyright (c) 2017 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017, 2018 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -234,7 +234,7 @@ send_cmd (int argc, char *argv[])
         fprintf (stdout, "Usage:\tsend ll dest_addr\n"
                  "\tsend llh dest_addr slot_number\n"
                  "\tsend off\n"
-                 "\tdest_addr 0...255, slot_number 0...4\n");
+                 "\tdest_addr 0...255, slot_number 0...31\n");
     }
     
     return OK;
