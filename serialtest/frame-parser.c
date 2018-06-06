@@ -414,7 +414,7 @@ send_f0_f1_frame (int fd, uint8_t *frame, int count, uint8_t header)
     
     if (header < 255)
     {
-        p += 4; // leave some space for the header
+        p += 3; // leave some space (3 bytes) for the header
     }
     *p++ = SOF_CHAR;
     
@@ -450,10 +450,9 @@ send_f0_f1_frame (int fd, uint8_t *frame, int count, uint8_t header)
     if (header < 255)
     {
         // special handling of frames with header
-        send_buffer[0] = 0xDD;  // start of frame
-        send_buffer[1] = 1;     // frame type (for testing only)
+        send_buffer[0] = SOH_CHAR;  // start of header
+        send_buffer[1] = 1;         // frame type (for testing only)
         send_buffer[2] = header;    // slot number
-        send_buffer[3] = count - 4; // payload len
     }
     
 #if SERIAL_DEBUG == 1
