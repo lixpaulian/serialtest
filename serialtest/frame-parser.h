@@ -32,9 +32,10 @@
 #include <pthread.h>
 
 
-#define SOF_CHAR 0xf0
-#define EOF_CHAR 0xf1
+#define SOF_CHAR 0xf0   // start of frame
+#define EOF_CHAR 0xf1   // end of frame
 #define ESCAPE_CHAR 0xf2
+#define SOH_CHAR 0xf3   // start of header
 #define MAX_FRAME_LEN 240
 
 typedef enum
