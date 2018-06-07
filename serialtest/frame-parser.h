@@ -107,10 +107,10 @@ typedef enum
 
 
 parse_result_t
-parse_f0_f1_frames (uint8_t **buff, uint8_t **end);
+parse_f0_f1_frames (uint8_t **buff, uint8_t **end, int8_t *rssi);
 
 void
-print_f0_f1_frames (uint8_t *buff, size_t len);
+print_f0_f1_frames (uint8_t *buff, size_t len, int8_t rssi);
 
 void *
 send_frames (void *p);

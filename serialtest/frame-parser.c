@@ -52,19 +52,36 @@ send_command (int fd, uint8_t *command, size_t cmd_len, size_t max_len);
 //  @retval parsing result (see parse_result_t typedef).
 
 parse_result_t
-parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
+parse_f0_f1_frames (uint8_t **begin, uint8_t **end, int8_t *rssi)
 {
     uint8_t *p = *begin;
     int result = FRAME_NOT_FOUND;
+    static int8_t local_rssi = 0;
+    static bool white_plus = false;
     
 #if PARSER_DEBUG == 1
     fprintf (stdout, "in %ld, ", *end - *begin + 1);
 #endif
     
     // find the frame's start
-    while (*p != SOF_CHAR && p < *end)
+    while (*p != SOF_CHAR && *p != SOH_CHAR && p < *end)
     {
         p++;
+    }
+    
+    if (*p == SOH_CHAR)
+    {
+        if (p + 3 < *end && *(p + 3) == SOF_CHAR )
+        {
+            local_rssi = *(p + 2);
+            p += 3;
+        }
+        else
+        {
+            *end = p;
+            result = FRAME_TRUNCATED;
+        }
+        white_plus = true;
     }
     
     if (*p == SOF_CHAR) // start of frame
@@ -84,14 +101,24 @@ parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
         
         if (*p == EOF_CHAR) // end of frame
         {
-            if (p == *end)
+            if (p == *end && white_plus == false)
             {
                 result = FRAME_TRUNCATED;
             }
             else
             {
-                p++;    // add rssi byte
+                // add rssi byte
+                if (white_plus)
+                {
+                    *rssi = local_rssi;
+                }
+                else
+                {
+                    p++;
+                    *rssi = *p * -1;
+                }
                 *end = p;
+                white_plus = false;
                 result = FRAME_OK;
             }
         }
@@ -101,7 +128,7 @@ parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
             result = FRAME_TRUNCATED;
         }
     }
- 
+
 #if PARSER_DEBUG == 1
     fprintf (stdout, "out %ld\n", *end - *begin + 1);
 #endif
@@ -114,16 +141,9 @@ parse_f0_f1_frames (uint8_t **begin, uint8_t **end)
 //  @param len: length of the frame.
 
 void
-print_f0_f1_frames (uint8_t *buff, size_t len)
+print_f0_f1_frames (uint8_t *buff, size_t len, int8_t rssi)
 {
-    if (buff[len - 2] == EOF_CHAR)      // do we have a valid rssi?
-    {
-        fprintf (stdout, "%3ld bytes, rssi %03d dBm: ", len, buff[len - 1] * -1);
-    }
-    else
-    {
-        fprintf (stdout, "%3ld bytes, rssi unknown: ", len);
-    }
+    fprintf (stdout, "%3ld bytes, rssi %03d dBm: ", len, rssi);
     
     for (int i = 0; i < len; i++)
     {
@@ -145,7 +165,7 @@ extract_f0_f1_frame (uint8_t *buff, size_t len)
     uint8_t *q = buff;
     int count = 0;
     
-    if (buff[len - 2] == EOF_CHAR && *buff == SOF_CHAR) // do we have a valid frame + rssi?
+    if ((buff[len - 2] == EOF_CHAR || buff[len - 1] == EOF_CHAR) && *buff == SOF_CHAR) // do we have a valid frame + rssi?
     {
         p++;    // skip the start of frame (0xf0)
         while (*p != EOF_CHAR)
