@@ -41,7 +41,7 @@ uint32_t g_crc_error_count;
 uint32_t g_total_recvd_frames;
 
 void
-analyzer (uint8_t *data, size_t len)
+analyzer (uint8_t *data, size_t len, int8_t rssi)
 {
     frame_t *frame = (frame_t *) data;
     struct timespec tp;
@@ -95,12 +95,12 @@ analyzer (uint8_t *data, size_t len)
         // store rssi value
         if ( g_stats[frame->header.src].rssi_samples > 10)
         {
-            g_stats[frame->header.src].rssi_sum = data[len - 1];
+            g_stats[frame->header.src].rssi_sum = rssi;
             g_stats[frame->header.src].rssi_samples = 1;
         }
         else
         {
-            g_stats[frame->header.src].rssi_sum += data[len - 1];
+            g_stats[frame->header.src].rssi_sum += rssi;
             g_stats[frame->header.src].rssi_samples++;
         }
         
