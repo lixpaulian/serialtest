@@ -217,6 +217,7 @@ handle_serial_line (int fd, bool print)
     ssize_t res;
     static uint8_t buff[400];
     static ssize_t offset = 0;
+    int8_t rssi;
     
     if ((res = read (fd, buff + offset, sizeof (buff) - offset)) > 0)
     {
@@ -234,11 +235,11 @@ handle_serial_line (int fd, bool print)
         begin = buff;
         end = buff + res + offset - 1;
         
-        while ((result = parse_f0_f1_frames (&begin, &end)) == FRAME_OK)
+        while ((result = parse_f0_f1_frames (&begin, &end, &rssi)) == FRAME_OK)
         {
             if (print)
             {
-                print_f0_f1_frames (begin, end - begin + 1);
+                print_f0_f1_frames (begin, end - begin + 1, rssi);
             }
             
             int count = extract_f0_f1_frame (begin, end - begin + 1);
@@ -248,7 +249,7 @@ handle_serial_line (int fd, bool print)
                 crc |=  begin[count - 2] << 8;
                 if (calcCRC (0, begin, count - 3) == crc)
                 {
-                    analyzer (begin, count);
+                    analyzer (begin, count, rssi);
                 }
                 else
                 {
