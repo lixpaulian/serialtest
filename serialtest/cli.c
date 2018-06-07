@@ -507,7 +507,7 @@ stats_cmd (int argc, char *argv[])
             {
                 fprintf (stdout, "Node %d: avg rssi: %d dBm, total frames %d, lost frames %d (%.2f%%)\n"
                          "Average/min/max latency (ms): %.2f/%.2f/%.2f\n",
-                         i, g_stats[i].rssi_sum  / g_stats[i].rssi_samples * -1,
+                         i, g_stats[i].rssi_sum  / g_stats[i].rssi_samples,
                          g_stats[i].frames_recvd + g_stats[i].frames_lost, g_stats[i].frames_lost,
                          g_stats[i].frames_lost * 100.0 / (g_stats[i].frames_recvd + g_stats[i].frames_lost),
                          (g_stats[i].latency_sum / (g_stats[i].latency_samples) / 1000.0),
