@@ -218,11 +218,25 @@ handle_serial_line (int fd, bool print)
     static uint8_t buff[400];
     static ssize_t offset = 0;
     int8_t rssi;
+    struct timespec tp;
+    static long last_entry = 0;
+    
+    clock_gettime (CLOCK_MONOTONIC, &tp);
+    long tmp = tp.tv_nsec / 1000;
+    long diff = tmp - last_entry;
+    if (diff > 2000)    // 2 ms
+    {
+        offset = 0;
+#if SERIAL_DEBUG == 1
+        fprintf (stdout, "----\n");
+#endif
+    }
+    last_entry = tmp;
     
     if ((res = read (fd, buff + offset, sizeof (buff) - offset)) > 0)
     {
 #if SERIAL_DEBUG == 1
-        fprintf (stdout, "\nread %ld bytes, offset %ld\n", res, offset);
+        fprintf (stdout, "\n%ld: read %ld bytes, offset %ld\n", offset ? diff : tmp, res, offset);
         for (int i = 0; i < res; i++)
         {
             fprintf (stdout, "%02x ", (buff + offset)[i]);
@@ -235,54 +249,103 @@ handle_serial_line (int fd, bool print)
         begin = buff;
         end = buff + res + offset - 1;
         
-        while ((result = parse_f0_f1_frames (&begin, &end, &rssi)) == FRAME_OK)
+        op_mode_t mode = get_mode ();
+        if (mode == WHITE_RADIO || mode == WHITE_RADIO_PLUS)
         {
-            if (print)
+            while ((result = parse_f0_f1_frames (&begin, &end, &rssi)) == FRAME_OK)
             {
-                print_f0_f1_frames (begin, end - begin + 1, rssi);
+                if (print)
+                {
+                    print_frames (begin, end - begin + 1, rssi);
+                }
+                
+                int count = extract_f0_f1_frame (begin, end - begin + 1);
+                if (count > 0)
+                {
+                    uint16_t crc = begin[count - 3];
+                    crc |=  begin[count - 2] << 8;
+                    if (calcCRC (0, begin, count - 3) == crc)
+                    {
+                        analyzer (begin, count, rssi);
+                    }
+                    else
+                    {
+                        g_crc_error_count++;
+                    }
+                    g_total_recvd_frames++;
+                }
+                if (end < buff + res + offset) // whole buffer done?
+                {
+                    // no, we might have more frames here, or at least a truncated one
+                    begin = end + 1;
+                    end = buff + res + offset - 1;
+                }
+                else
+                {
+                    offset = 0;
+                    break;
+                }
             }
             
-            int count = extract_f0_f1_frame (begin, end - begin + 1);
-            if (count > 0)
+            if (result == FRAME_TRUNCATED)
             {
-                uint16_t crc = begin[count - 3];
-                crc |=  begin[count - 2] << 8;
-                if (calcCRC (0, begin, count - 3) == crc)
+                // that means we have detected a frame begin, but not an end
+#if SERIAL_DEBUG == 1
+                fprintf (stdout, "-- truncated (len %ld)\n", end - begin + 1);
+#endif
+                // prepare to read more data from the serial port
+                memmove (buff, begin, end - begin + 1);
+                offset = end - begin + 1;
+            }
+            else
+            {
+                offset = 0;
+            }
+        }
+        else if (mode == ROTFUNK_PLUS)
+        {
+            // rot funk plus
+#if SERIAL_DEBUG == 1
+            fprintf (stdout, "count %ld, header %lu\n", res + offset, buff[0] + sizeof (red_header_t));
+#endif
+            if (buff[0] == 0xCC && res + offset >= 3)
+            {
+                // get rid of 0xCC answers
+                offset = 0;
+            }
+            else if ((res + offset) == (buff[0] + sizeof (red_header_t)))
+            {
+                // frame complete
+                size_t payoad_len = buff[0];
+                uint8_t* p = &buff[3];
+                
+                if (print)
                 {
-                    analyzer (begin, count, rssi);
+                    print_frames (p, payoad_len, buff[2]);
+                }
+
+                // compute CRC
+                uint16_t crc = p[payoad_len - 2];
+                crc |=  p[payoad_len - 1] << 8;
+                if (calcCRC (0, p, (int) payoad_len - 2) == crc)
+                {
+                    analyzer (&buff[3], payoad_len, buff[2]);
                 }
                 else
                 {
                     g_crc_error_count++;
                 }
                 g_total_recvd_frames++;
-            }
-            if (end < buff + res + offset) // whole buffer done?
-            {
-                // no, we might have more frames here, or at least a truncated one
-                begin = end + 1;
-                end = buff + res + offset - 1;
+                offset = 0;
             }
             else
             {
-                offset = 0;
-                break;
+                offset += res;
+                if (offset >= sizeof (buff))
+                {
+                    offset = 0;
+                }
             }
-        }
-        
-        if (result == FRAME_TRUNCATED)
-        {
-            // that means we have detected a frame begin, but not an end
-#if SERIAL_DEBUG == 1
-            fprintf (stdout, "-- truncated (len %ld)\n", end - begin + 1);
-#endif
-            // prepare to read more data from the serial port
-            memmove (buff, begin, end - begin + 1);
-            offset = end - begin + 1;
-        }
-        else
-        {
-            offset = 0;
         }
         return 0;
     }
@@ -310,7 +373,7 @@ locate_port (char *location, char* path, size_t len)
     IOCFPlugInInterface **plugInInterface = NULL;
     IOUSBDeviceInterface **dev = NULL;
     SInt32 score;
-    HRESULT result;
+    ULONG result;
     UInt16 vendor;
     UInt16 product;
     UInt16 address;
@@ -349,8 +412,11 @@ locate_port (char *location, char* path, size_t len)
         
         // Now create the device interface
         result = (*plugInInterface)->QueryInterface(plugInInterface,
-                                                    CFUUIDGetUUIDBytes(kIOUSBDeviceInterfaceID),
+                                                    // CFUUIDGetUUIDBytes(kIOUSBDeviceInterfaceID),
+                                                    // this is for macos 10.13
+                                                    CFUUIDGetUUIDBytes(kIOUSBDeviceInterfaceID650),
                                                     (LPVOID *)&dev);
+
         // Don’t need the intermediate plug-in after device interface is created
         (*plugInInterface)->Release(plugInInterface);
         
