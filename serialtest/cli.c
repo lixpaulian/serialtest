@@ -221,7 +221,7 @@ send_cmd (int argc, char *argv[])
             pthread_mutex_lock (&send_serial_mutex);
             ipc.address = atoi (argv[1]);
             ipc.cmd = SEND_LOW_LATENCY_FRAMES_WITH_HEADER;
-            ipc.parameter = atoi (argv[2]);
+            ipc.parameter0 = atoi (argv[2]);
             pthread_mutex_unlock (&send_serial_mutex);
         }
         else
@@ -251,7 +251,7 @@ interval_cmd (int argc, char *argv[])
         {
             pthread_mutex_lock (&send_serial_mutex);
             ipc.cmd = INTERVAL;
-            ipc.parameter = value;
+            ipc.parameter0 = value;
             pthread_mutex_unlock (&send_serial_mutex);
         }
         else
@@ -296,7 +296,7 @@ set_cmd (int argc, char *argv[])
                 else
                 {
                     ipc.cmd = SET_CHANNEL;
-                    ipc.parameter = ch - 11;
+                    ipc.parameter0 = ch - 11;
                 }
                 sts.tv_nsec = 20000000;
                 sts.tv_sec = 0;
@@ -307,11 +307,11 @@ set_cmd (int argc, char *argv[])
                 ipc.cmd = SET_MASTER;
                 if (!strcasecmp (argv[1], "on"))
                 {
-                    ipc.parameter = 0;
+                    ipc.parameter0 = 0;
                 }
                 else if (!strcasecmp (argv[1], "off"))
                 {
-                    ipc.parameter = 1;
+                    ipc.parameter0 = 1;
                 }
                 else
                 {
@@ -325,15 +325,15 @@ set_cmd (int argc, char *argv[])
                 
                 if (!strcasecmp (argv[1], "250K"))
                 {
-                    ipc.parameter = MOD_OQPSK_250K;
+                    ipc.parameter0 = MOD_OQPSK_250K;
                 }
                 else if (!strcasecmp (argv[1], "1M"))
                 {
-                    ipc.parameter = MOD_GFSK_1M;
+                    ipc.parameter0 = MOD_GFSK_1M;
                 }
                 else if (!strcasecmp (argv[1], "2M"))
                 {
-                    ipc.parameter = MOD_GFSK_2M;
+                    ipc.parameter0 = MOD_GFSK_2M;
                 }
                 else
                 {
@@ -362,7 +362,7 @@ set_cmd (int argc, char *argv[])
                 if (region < 20)
                 {
                     ipc.cmd = SET_REGION;
-                    ipc.parameter = region;
+                    ipc.parameter0 = region;
                 }
                 else
                 {
@@ -374,11 +374,12 @@ set_cmd (int argc, char *argv[])
             }
             else if (!strcasecmp (argv[0], "hop"))
             {
-                if (argc == 3)
+                if (argc == 4)
                 {
                     ipc.cmd = SET_HOP_PARAMS;
-                    ipc.parameter = atoi (argv[1]);
+                    ipc.parameter0 = atoi (argv[1]);
                     ipc.parameter1 = atoi (argv[2]);
+                    ipc.parameter2 = atoi (argv[3]);
                 }
                 else
                 {
@@ -390,7 +391,7 @@ set_cmd (int argc, char *argv[])
                 if (argc == 2)
                 {
                     ipc.cmd = SET_BAUD;
-                    ipc.parameter = atoi (argv[1]);
+                    ipc.parameter0 = atoi (argv[1]);
                 }
                 else
                 {
@@ -399,25 +400,21 @@ set_cmd (int argc, char *argv[])
             }
             else if (!strcasecmp (argv[0], "proto"))
             {
-                if (!strcasecmp (argv[1], "on"))
+                int param = atoi (argv[1]);
+                if (param < 3)
                 {
-                    ipc.parameter = 1;
-                    ipc.cmd = SET_PROTOCOL;
-                }
-                else if (!strcasecmp (argv[1], "off"))
-                {
-                    ipc.parameter = 0;
+                    ipc.parameter0 = param;
                     ipc.cmd = SET_PROTOCOL;
                 }
                 else
                 {
-                    fprintf (stdout, "Invalid parameter\n");
+                    fprintf (stdout, "Invalid parameter, must be 0 - white, 1 - white+, 2 - red+\n");
                 }
             }
             else if (!strcasecmp (argv[0], "slot"))
             {
                 int slot, i;
-                ipc.parameter = 0;
+                ipc.parameter0 = 0;
                 for (i = 1; i < argc; i++)
                 {
                     slot = atoi (argv[i]);
@@ -426,7 +423,7 @@ set_cmd (int argc, char *argv[])
                         fprintf (stdout, "<slot#> can be from 0 to 4\n");
                         break;
                     }
-                    ipc.parameter |= (1 << slot);
+                    ipc.parameter0 |= (1 << slot);
                 }
                 if (i == argc)
                 {
@@ -461,7 +458,7 @@ set_cmd (int argc, char *argv[])
                     }
                     else
                     {
-                        ipc.parameter = bw + ((which << 4) & 0x70);
+                        ipc.parameter0 = bw + ((which << 4) & 0x70);
                         ipc.cmd = SET_BW;
                     }
                 }
