@@ -38,6 +38,25 @@ typedef enum
     SET_PARAMETER
 } get_set_cmd_t;
 
+typedef enum
+{
+    WHITE_RADIO = 0,
+    WHITE_RADIO_PLUS,
+    ROTFUNK_PLUS,
+} op_mode_t;
+
+typedef struct __attribute__ ((packed))
+{
+    uint8_t len;
+    uint8_t frame_id;
+    uint8_t extra;
+} red_header_t;
+
+void
+set_mode (op_mode_t mode);
+
+op_mode_t
+get_mode (void);
 
 bool
 dump_frames (get_set_cmd_t operation, bool state);

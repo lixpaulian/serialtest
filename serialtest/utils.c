@@ -34,6 +34,19 @@
 
 #include "utils.h"
 
+static int g_mode = WHITE_RADIO;
+
+void
+set_mode (op_mode_t mode)
+{
+    g_mode = mode;
+}
+
+op_mode_t
+get_mode (void)
+{
+    return g_mode;
+}
 
 bool
 dump_frames (get_set_cmd_t operation, bool state)
