@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <pthread.h>
 
+#include "utils.h"
 
 #define SOF_CHAR 0xf0   // start of frame
 #define EOF_CHAR 0xf1   // end of frame
@@ -65,8 +66,9 @@ typedef struct
 {
     int cmd;
     uint8_t address;
-    uint32_t parameter;
+    uint32_t parameter0;
     uint32_t parameter1;
+    uint32_t parameter2;
 } ipc_t;
 
 typedef enum
@@ -110,13 +112,13 @@ parse_result_t
 parse_f0_f1_frames (uint8_t **buff, uint8_t **end, int8_t *rssi);
 
 void
-print_f0_f1_frames (uint8_t *buff, size_t len, int8_t rssi);
+print_frames (uint8_t *buff, size_t len, int8_t rssi);
 
 void *
 send_frames (void *p);
 
 ssize_t
-send_f0_f1_frame (int fd, uint8_t *frame, int count, uint8_t header);
+send_frame (int fd, uint8_t *frame, int count, op_mode_t type, uint8_t slot);
 
 int
 extract_f0_f1_frame (uint8_t *buff, size_t len);

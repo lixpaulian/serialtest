@@ -141,7 +141,7 @@ parse_f0_f1_frames (uint8_t **begin, uint8_t **end, int8_t *rssi)
 //  @param len: length of the frame.
 
 void
-print_f0_f1_frames (uint8_t *buff, size_t len, int8_t rssi)
+print_frames (uint8_t *buff, size_t len, int8_t rssi)
 {
     fprintf (stdout, "%3ld bytes, rssi %03d dBm: ", len, rssi);
     
@@ -228,7 +228,7 @@ send_frames (void *p)
     struct termios options;
     int count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
     int interval = 20; // ms
-    uint8_t header = 0;
+     uint8_t slot = 0;
     
     // set cmd/data line to data (true)
     if (cmd_data(fd, true) == false)
@@ -252,7 +252,7 @@ send_frames (void *p)
                     dest_address = ipc.address;
                     count = LOCAL_BUFFER_SIZE;
                     send_periodically = true;
-                    header = (ipc.cmd == SEND_LOW_LATENCY_FRAMES ? 255 : ipc.parameter);
+                    slot = ipc.parameter0;
                     break;
                     
                 case STOP_LOW_LATENCY_FRAMES:
@@ -260,14 +260,14 @@ send_frames (void *p)
                     break;
                     
                 case INTERVAL:
-                    interval = ipc.parameter;
+                    interval = ipc.parameter0;
                     break;
                     
                     
                 case SET_CHANNEL:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x02;    // set/get channel
-                    cc_buffer[2] = ipc.parameter & 0xff;
+                    cc_buffer[2] = ipc.parameter0 & 0xff;
                     if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
@@ -277,7 +277,7 @@ send_frames (void *p)
                 case SET_MASTER:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x03;    // set/get channel
-                    cc_buffer[2] = ipc.parameter & 0xff;
+                    cc_buffer[2] = ipc.parameter0 & 0xff;
                     if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
@@ -287,7 +287,7 @@ send_frames (void *p)
                 case SET_RATE:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x66;    // set/get bit rate
-                    cc_buffer[2] = ipc.parameter & 0xff;
+                    cc_buffer[2] = ipc.parameter0 & 0xff;
                     if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
@@ -297,11 +297,12 @@ send_frames (void *p)
                 case SET_HOP_PARAMS:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x67;    // set/get hop parameters
-                    cc_buffer[2] = ipc.parameter & 0xff;
-                    cc_buffer[3] = (ipc.parameter >> 8) & 0xff;
+                    cc_buffer[2] = ipc.parameter0 & 0xff;
+                    cc_buffer[3] = (ipc.parameter0 >> 8) & 0xff;
                     cc_buffer[4] = ipc.parameter1 & 0xff;
                     cc_buffer[5] = (ipc.parameter1 >> 8) & 0xff;
-                    if (send_command (fd, cc_buffer, 6, sizeof(cc_buffer)) < 0)
+                    cc_buffer[6] = (uint8_t) ipc.parameter2;
+                    if (send_command (fd, cc_buffer, 7, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
                     }
@@ -309,20 +310,20 @@ send_frames (void *p)
                     
                 case SET_BAUD:
                     tcgetattr (fd, &options);
-                    cfsetispeed (&options, ipc.parameter);
-                    cfsetospeed (&options, ipc.parameter);
+                    cfsetispeed (&options, ipc.parameter0);
+                    cfsetospeed (&options, ipc.parameter0);
 
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x50;    // set baud rate
-                    if (ipc.parameter == 300)
+                    if (ipc.parameter0 == 300)
                     {
                         // handle special case 300 baud which is aliased to 288000
-                        ipc.parameter = 288000;
+                        ipc.parameter0 = 288000;
                     }
-                    cc_buffer[2] = ipc.parameter & 0xff;
-                    cc_buffer[3] = (ipc.parameter >> 8) & 0xff;
-                    cc_buffer[4] = (ipc.parameter >> 16) & 0xff;
-                    cc_buffer[5] = (ipc.parameter >> 24) & 0xff;
+                    cc_buffer[2] = ipc.parameter0 & 0xff;
+                    cc_buffer[3] = (ipc.parameter0 >> 8) & 0xff;
+                    cc_buffer[4] = (ipc.parameter0 >> 16) & 0xff;
+                    cc_buffer[5] = (ipc.parameter0 >> 24) & 0xff;
                     if (send_command (fd, cc_buffer, 6, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
@@ -336,7 +337,7 @@ send_frames (void *p)
                 case SET_SLOT:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x81;    // set/get slots
-                    cc_buffer[2] = ipc.parameter & 0xff;
+                    cc_buffer[2] = ipc.parameter0 & 0xff;
                     if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
@@ -346,7 +347,7 @@ send_frames (void *p)
                 case SET_BW:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x82;    // set bandwidth
-                    cc_buffer[2] = ipc.parameter & 0xff;
+                    cc_buffer[2] = ipc.parameter0 & 0xff;
                     if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
@@ -356,7 +357,7 @@ send_frames (void *p)
                 case SET_REGION:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x60;    // get/set region
-                    cc_buffer[2] = ipc.parameter & 0xff;
+                    cc_buffer[2] = ipc.parameter0 & 0xff;
                     if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
@@ -366,11 +367,12 @@ send_frames (void *p)
                 case SET_PROTOCOL:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x80;    // set protocol
-                    cc_buffer[2] = ipc.parameter & 1;
+                    cc_buffer[2] = ipc.parameter0 & 3;
                     if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
                     }
+                    set_mode (ipc.parameter0 & 3);
                     break;
 
                 default:
@@ -403,7 +405,7 @@ send_frames (void *p)
             send_buffer[count + sizeof (frame_hdr_t) + 1] = (uint8_t) (crc >> 8) & 0xFF;
             
             count += 2;
-            if (send_f0_f1_frame (fd, send_buffer, count + sizeof (frame_hdr_t), header) < 0)
+            if (send_frame (fd, send_buffer, count + sizeof (frame_hdr_t), get_mode (), slot) < 0)
             {
                 perror("serial port write");
                 break;
@@ -425,54 +427,64 @@ send_frames (void *p)
 
 
 ssize_t
-send_f0_f1_frame (int fd, uint8_t *frame, int count, uint8_t header)
+send_frame (int fd, uint8_t *frame, int count, op_mode_t type, uint8_t slot)
 {
     uint8_t send_buffer[MAX_FRAME_LEN];
     uint8_t *p = send_buffer;
     int i;
     ssize_t result;
     
-    if (header < 255)
+    if (type > WHITE_RADIO)
     {
         p += 3; // leave some space (3 bytes) for the header
     }
-    *p++ = SOF_CHAR;
     
-    for (i = 0; i < count; i++)
+    if (type < ROTFUNK_PLUS)
     {
-        if (p < send_buffer + MAX_FRAME_LEN - 1)
+        *p++ = SOF_CHAR;
+        
+        for (i = 0; i < count; i++)
         {
-            switch (frame[i])
+            if (p < send_buffer + MAX_FRAME_LEN - 1)
             {
-                case SOF_CHAR:
-                    *p++ = ESCAPE_CHAR;
-                    *p++ = 0;
-                    break;
-                    
-                case EOF_CHAR:
-                    *p++ = ESCAPE_CHAR;
-                    *p++ = 1;
-                    break;
-                    
-                case ESCAPE_CHAR:
-                    *p++ = ESCAPE_CHAR;
-                    *p++ = 2;
-                    break;
-                    
-                default:
-                    *p++ = frame[i];
+                switch (frame[i])
+                {
+                    case SOF_CHAR:
+                        *p++ = ESCAPE_CHAR;
+                        *p++ = 0;
+                        break;
+                        
+                    case EOF_CHAR:
+                        *p++ = ESCAPE_CHAR;
+                        *p++ = 1;
+                        break;
+                        
+                    case ESCAPE_CHAR:
+                        *p++ = ESCAPE_CHAR;
+                        *p++ = 2;
+                        break;
+                        
+                    default:
+                        *p++ = frame[i];
+                }
             }
         }
+        *p++ = EOF_CHAR;
+        count = (int) (p - send_buffer);
     }
-    *p++ = EOF_CHAR;
-    count = (int) (p - send_buffer);
+    else
+    {
+        // rotfunk
+        memcpy (p, frame, count);
+        count += sizeof (red_header_t); // header length
+    }
     
-    if (header < 255)
+    if (type > WHITE_RADIO)
     {
         // special handling of frames with header
-        send_buffer[0] = SOH_CHAR;  // start of header
-        send_buffer[1] = 1;         // frame type (for testing only)
-        send_buffer[2] = header;    // slot number
+        send_buffer[0] = (type == WHITE_RADIO_PLUS ? SOH_CHAR : (count - sizeof (red_header_t)));
+        send_buffer[1] = 1;         // frame type (TBD)
+        send_buffer[2] = slot;      // slot number
     }
     
 #if SERIAL_DEBUG == 1
