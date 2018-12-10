@@ -113,7 +113,7 @@ main (int argc, char * argv[])
             port = buff;
         }
     }
-
+    
     if (port == NULL)
     {
         fprintf (stdout, "Missing device (-D or -p option required)\n");
@@ -173,7 +173,7 @@ main (int argc, char * argv[])
     {
         FD_SET (fd, &readfs);
         FD_SET (fileno (stdin), &readfs);
-
+        
         res = select (maxfd, &readfs, NULL, NULL, NULL);
         if (FD_ISSET(fd, &readfs))
         {
@@ -245,7 +245,7 @@ handle_serial_line (int fd, bool print)
 #endif
         uint8_t *begin, *end;
         int result;
-         
+        
         begin = buff;
         end = buff + res + offset - 1;
         
@@ -316,26 +316,17 @@ handle_serial_line (int fd, bool print)
             else if ((res + offset) == (buff[0] + sizeof (red_header_t)))
             {
                 // frame complete
-                size_t payoad_len = buff[0];
+                size_t payload_len = buff[0];
                 uint8_t* p = &buff[3];
                 
                 if (print)
                 {
-                    print_frames (p, payoad_len, buff[2]);
+                    print_frames (p, payload_len, buff[2]);
                 }
-
-                // compute CRC
-                uint16_t crc = p[payoad_len - 2];
-                crc |=  p[payoad_len - 1] << 8;
-                if (calcCRC (0, p, (int) payoad_len - 2) == crc)
+                if (payload_len)
                 {
-                    analyzer (&buff[3], payoad_len, buff[2]);
+                    analyzer (p, payload_len, buff[2]);
                 }
-                else
-                {
-                    g_crc_error_count++;
-                }
-                g_total_recvd_frames++;
                 offset = 0;
             }
             else
@@ -416,7 +407,7 @@ locate_port (char *location, char* path, size_t len)
                                                     // this is for macos 10.13
                                                     CFUUIDGetUUIDBytes(kIOUSBDeviceInterfaceID650),
                                                     (LPVOID *)&dev);
-
+        
         // Don’t need the intermediate plug-in after device interface is created
         (*plugInInterface)->Release(plugInInterface);
         
