@@ -46,8 +46,9 @@ typedef enum
     FRAME_TRUNCATED,
 } parse_result_t;
 
-typedef struct
+typedef struct __attribute__ ((packed))
 {
+    uint8_t len;
     uint8_t dest;
     uint8_t src;
     uint8_t index;
