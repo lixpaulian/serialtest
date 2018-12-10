@@ -43,77 +43,99 @@ uint32_t g_total_recvd_frames;
 void
 analyzer (uint8_t *data, size_t len, int8_t rssi)
 {
-    frame_t *frame = (frame_t *) data;
+    frame_t *frame;
     struct timespec tp;
     int lost_frames;
+    size_t count_left = len;
     
-    if (frame->header.dest == BCAST_ADDRESS ||
-         frame->header.dest == own_address (GET_PARAMETER, 0))
+    do
     {
-        clock_gettime (CLOCK_MONOTONIC, &tp);
-        uint32_t latency = (uint32_t) (tp.tv_nsec / 1000);
-        
-        g_stats[frame->header.src].frames_recvd++;
-        
-        if (latency > frame->header.timestamp)
+        frame = (frame_t *) data;
+        if (frame->header.len < 6)  // simple sanity check
         {
-            latency -= frame->header.timestamp;
+            break;
         }
-        else
+        uint16_t crc = data[frame->header.len];
+        crc |=  (data[frame->header.len + 1] << 8);
+        if (calcCRC (0, data, (int) frame->header.len) == crc)
         {
-            latency = latency + 1000000 - frame->header.timestamp;
-        }
-        
-        // store latency values
-        g_stats[frame->header.src].latency_sum += latency;
-        g_stats[frame->header.src].latency_samples++;
-        
-        if (latency > g_stats[frame->header.src].latency_max)
-        {
-            g_stats[frame->header.src].latency_max = latency;
-        }
-        if (latency < g_stats[frame->header.src].latency_min)
-        {
-            g_stats[frame->header.src].latency_min = latency;
-        }
-        
-        // identify lost frames
-        if (g_stats[frame->header.src].frames_recvd != 0)
-        {
-            if (g_stats[frame->header.src].last_index < frame->header.index)
+            if (frame->header.dest == BCAST_ADDRESS ||
+                frame->header.dest == own_address (GET_PARAMETER, 0))
             {
-                lost_frames = frame->header.index - g_stats[frame->header.src].last_index - 1;
-            }
-            else
-            {
-                lost_frames = 255 + frame->header.index - g_stats[frame->header.src].last_index;
-            }
-            g_stats[frame->header.src].frames_lost += lost_frames;
-        }
-        g_stats[frame->header.src].last_index = frame->header.index;
-        
-        // store rssi value
-        if ( g_stats[frame->header.src].rssi_samples > 10)
-        {
-            g_stats[frame->header.src].rssi_sum = rssi;
-            g_stats[frame->header.src].rssi_samples = 1;
-        }
-        else
-        {
-            g_stats[frame->header.src].rssi_sum += rssi;
-            g_stats[frame->header.src].rssi_samples++;
-        }
-        
-        // handle specific frames
-        switch (frame->header.type)
-        {
-            case LOW_LATENCY:
-                break;
+                clock_gettime (CLOCK_MONOTONIC, &tp);
+                uint32_t latency = (uint32_t) (tp.tv_nsec / 1000);
                 
-            case FILE_XFER:
-                break;
+                g_stats[frame->header.src].frames_recvd++;
+                
+                if (latency > frame->header.timestamp)
+                {
+                    latency -= frame->header.timestamp;
+                }
+                else
+                {
+                    latency = latency + 1000000 - frame->header.timestamp;
+                }
+                
+                // store latency values
+                g_stats[frame->header.src].latency_sum += latency;
+                g_stats[frame->header.src].latency_samples++;
+                
+                if (latency > g_stats[frame->header.src].latency_max)
+                {
+                    g_stats[frame->header.src].latency_max = latency;
+                }
+                if (latency < g_stats[frame->header.src].latency_min)
+                {
+                    g_stats[frame->header.src].latency_min = latency;
+                }
+                
+                // identify lost frames
+                if (g_stats[frame->header.src].frames_recvd != 0)
+                {
+                    if (g_stats[frame->header.src].last_index < frame->header.index)
+                    {
+                        lost_frames = frame->header.index - g_stats[frame->header.src].last_index - 1;
+                    }
+                    else
+                    {
+                        lost_frames = 255 + frame->header.index - g_stats[frame->header.src].last_index;
+                    }
+                    g_stats[frame->header.src].frames_lost += lost_frames;
+                }
+                g_stats[frame->header.src].last_index = frame->header.index;
+                
+                // store rssi value
+                if ( g_stats[frame->header.src].rssi_samples > 10)
+                {
+                    g_stats[frame->header.src].rssi_sum = rssi;
+                    g_stats[frame->header.src].rssi_samples = 1;
+                }
+                else
+                {
+                    g_stats[frame->header.src].rssi_sum += rssi;
+                    g_stats[frame->header.src].rssi_samples++;
+                }
+                
+                // handle specific frames
+                switch (frame->header.type)
+                {
+                    case LOW_LATENCY:
+                        break;
+                        
+                    case FILE_XFER:
+                        break;
+                }
+            }
         }
-    }
+        else
+        {
+            g_crc_error_count++;
+        }
+        g_total_recvd_frames++;
+        
+        data += (frame->header.len + 2);
+        count_left -= (frame->header.len + 2);
+    } while (count_left);
 }
 
 //  @brief  Clear the statistic data
