@@ -228,7 +228,7 @@ send_frames (void *p)
     struct termios options;
     int count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
     int interval = 20; // ms
-     uint8_t slot = 0;
+    uint8_t slot = 0;
     
     // set cmd/data line to data (true)
     if (cmd_data(fd, true) == false)
@@ -301,8 +301,19 @@ send_frames (void *p)
                     cc_buffer[3] = (ipc.parameter0 >> 8) & 0xff;
                     cc_buffer[4] = ipc.parameter1 & 0xff;
                     cc_buffer[5] = (ipc.parameter1 >> 8) & 0xff;
-                    cc_buffer[6] = (uint8_t) ipc.parameter2;
-                    if (send_command (fd, cc_buffer, 7, sizeof(cc_buffer)) < 0)
+                    if (send_command (fd, cc_buffer, 6, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
+                    
+                    sts.tv_nsec = 10000000; // 10 ms
+                    sts.tv_sec = 0;
+                    nanosleep (&sts, NULL);
+
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x68;    // set/get slots number
+                    cc_buffer[2] = ipc.parameter2 & 0xff;
+                    if (send_command (fd, cc_buffer, 3, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
                     }
@@ -396,16 +407,17 @@ send_frames (void *p)
                 frame->header.type = LOW_LATENCY;
                 frame->header.dest = dest_address;
                 memset (&frame->payload, 0x55, LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t));
-                count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
+                count = LOCAL_BUFFER_SIZE;
+                frame->header.len = count;
             }
             
             // compute frame's CRC
-            uint16_t crc = calcCRC(0, send_buffer, count + sizeof (frame_hdr_t));
-            send_buffer[count + sizeof (frame_hdr_t)] = (uint8_t) crc;
-            send_buffer[count + sizeof (frame_hdr_t) + 1] = (uint8_t) (crc >> 8) & 0xFF;
+            uint16_t crc = calcCRC(0, send_buffer, count);
+            send_buffer[count] = (uint8_t) crc;
+            send_buffer[count + 1] = (uint8_t) (crc >> 8) & 0xFF;
             
             count += 2;
-            if (send_frame (fd, send_buffer, count + sizeof (frame_hdr_t), get_mode (), slot) < 0)
+            if (send_frame (fd, send_buffer, count, get_mode (), slot) < 0)
             {
                 perror("serial port write");
                 break;
