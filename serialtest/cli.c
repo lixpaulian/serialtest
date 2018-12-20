@@ -247,7 +247,7 @@ interval_cmd (int argc, char *argv[])
     if (argc > 0)
     {
         int value = atoi (argv[0]);
-        if (value >= 3 && value <= 100)
+        if (value > 0 && value <= 100)
         {
             pthread_mutex_lock (&send_serial_mutex);
             ipc.cmd = INTERVAL;
@@ -256,7 +256,7 @@ interval_cmd (int argc, char *argv[])
         }
         else
         {
-            fprintf (stdout, "Invalid parameter, should be between 3 and 100 (ms)\n");
+            fprintf (stdout, "Invalid parameter, should be between 1 and 100 (ms)\n");
         }
     }
     else
