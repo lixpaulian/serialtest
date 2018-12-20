@@ -216,7 +216,7 @@ send_frames (void *p)
 {
     /* note: the frame is 90 bytes long + 2 bytes CRC. This is close to the maximum permissible
      for a 3.5 ms frame at 250 Kbps OQPSK (e.g. ZigBee) */
-#define LOCAL_BUFFER_SIZE 20 //90
+#define LOCAL_BUFFER_SIZE 16 //90
     int fd = *(int *) p;
     uint8_t send_buffer[LOCAL_BUFFER_SIZE + 2];    // +2 for CRC
     uint8_t cc_buffer[20];
