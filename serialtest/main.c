@@ -262,17 +262,7 @@ handle_serial_line (int fd, bool print)
                 int count = extract_f0_f1_frame (begin, end - begin + 1);
                 if (count > 0)
                 {
-                    uint16_t crc = begin[count - 3];
-                    crc |=  begin[count - 2] << 8;
-                    if (calcCRC (0, begin, count - 3) == crc)
-                    {
-                        analyzer (begin, count, rssi);
-                    }
-                    else
-                    {
-                        g_crc_error_count++;
-                    }
-                    g_total_recvd_frames++;
+                    analyzer (begin, count - 1, rssi);
                 }
                 if (end < buff + res + offset) // whole buffer done?
                 {
