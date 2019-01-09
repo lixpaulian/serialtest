@@ -2,7 +2,7 @@
 //  cli.h
 //  serialtest
 //
-//  Copyright (c) 2017, 2018 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017 - 2019 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,7 @@
 
 
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 8
+#define VERSION_MINOR 9
 
 
 int

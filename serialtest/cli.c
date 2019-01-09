@@ -2,7 +2,7 @@
 //  cli.c
 //  serialtest
 //
-//  Copyright (c) 2017, 2018 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017 - 2019 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -386,6 +386,18 @@ set_cmd (int argc, char *argv[])
                     fprintf (stdout, "Insuficient arguments\n");
                 }
             }
+            else if (!strcasecmp (argv[0], "stretch"))
+            {
+                if (argc == 2)
+                {
+                    ipc.cmd = SET_HOP_STRETCHING;
+                    ipc.parameter0 = atoi (argv[1]);
+                }
+                else
+                {
+                    fprintf (stdout, "Hop stretch (in us; min 500, max hop_high - 500)\n");
+                }
+            }
             else if (!strcasecmp (argv[0], "baud"))
             {
                 if (argc == 2)
@@ -478,7 +490,7 @@ set_cmd (int argc, char *argv[])
     }
     else
     {
-        fprintf (stdout, "Usage:\tset { zch | master | rate | hop | region | baud | proto | bw | slot }\n");
+        fprintf (stdout, "Usage:\tset { zch | master | rate | hop | stretch | region | baud | proto | bw | slot }\n");
     }
      
     return OK;
