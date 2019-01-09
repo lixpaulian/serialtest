@@ -319,6 +319,17 @@ send_frames (void *p)
                     }
                     break;
                     
+                case SET_HOP_STRETCHING:
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x69;    // set/get hop stretching
+                    cc_buffer[2] = ipc.parameter0 & 0xff;
+                    cc_buffer[3] = (ipc.parameter0 >> 8) & 0xff;
+                    if (send_command (fd, cc_buffer, 4, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
+                    break;
+
                 case SET_BAUD:
                     tcgetattr (fd, &options);
                     cfsetispeed (&options, ipc.parameter0);

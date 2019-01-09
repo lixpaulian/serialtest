@@ -85,6 +85,7 @@ typedef enum
     SET_RATE,
     SET_REGION,
     SET_HOP_PARAMS,
+    SET_HOP_STRETCHING,
     SET_BAUD,
     SET_SLOT,
     SET_BW,
