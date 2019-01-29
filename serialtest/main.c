@@ -35,6 +35,8 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <sys/_select.h>
+#include <sys/ioctl.h>
+#include <IOKit/serial/ioss.h>
 #include <pthread.h>
 
 #include "frame-parser.h"
@@ -98,7 +100,7 @@ main (int argc, char * argv[])
                 
             case 'h':
             default:
-                fprintf (stdout, "Usage: sertest -D <tty>\n\tor sertest -l <usb_location_ID>\n");
+                fprintf (stdout, "Usage: serialtest -D <tty>\n\tor sertest -l <usb_location_ID>\n");
                 fprintf (stdout, "\tother options: -b <baudrate>, -a <own_address>, -v, -h\n");
                 exit (EXIT_SUCCESS);
                 break;
@@ -125,8 +127,10 @@ main (int argc, char * argv[])
     {
         fcntl (fd, F_SETFL, 0);
         tcgetattr (fd, &options);
+#if USE_IOSSIOSPEED == false
         cfsetispeed (&options, baudRate);
         cfsetospeed (&options, baudRate);
+#endif
         options.c_cflag |= (CLOCAL | CREAD);
         options.c_oflag &= ~OPOST;
         options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
@@ -138,6 +142,13 @@ main (int argc, char * argv[])
             fprintf (stdout, "Failed to set new parameters on the serial port\n");
             exit (EXIT_FAILURE);
         }
+#if USE_IOSSIOSPEED == true
+        speed_t speed = baudRate;
+        if (ioctl(fd, IOSSIOSPEED, &speed) == -1 )
+        {
+            fprintf (stdout, "Failed to set new baudrate\n");
+        }
+#endif
     }
     else
     {
