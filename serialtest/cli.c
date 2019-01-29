@@ -76,6 +76,8 @@ quit_cmd (int argc, char *argv[]);
 static int
 help (int argc, char *argv[]);
 
+static int
+spy_cmd (int argc, char *argv[]);
 
 
 //===============================================================================
@@ -90,6 +92,7 @@ const cmds_t rxcmds[] =
     { "interval", interval_cmd, "Set the interval between low latency frames" },
     { "set", set_cmd, "Set various parameters" },
     { "stat", stats_cmd, "Show/clear statistics" },
+    { "spy", spy_cmd, "Spy on the current radio channel" },
     { "quit", quit_cmd, "Quit program" },
     { "exit", quit_cmd, "Exit program" },
     { "help", help, "Show this help; for individual command help, use <command> -h" },
@@ -236,6 +239,17 @@ send_cmd (int argc, char *argv[])
                  "\tsend off\n"
                  "\tdest_addr 0...255, slot_number 0...31\n");
     }
+    
+    return OK;
+}
+
+// Command to send various types of frames over the serial port.
+static int
+spy_cmd (int argc, char *argv[])
+{
+    pthread_mutex_lock (&send_serial_mutex);
+    ipc.cmd = GET_TRAFFIC_STATS;
+    pthread_mutex_unlock (&send_serial_mutex);
     
     return OK;
 }
