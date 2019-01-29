@@ -33,6 +33,8 @@
 
 #include "utils.h"
 
+#define USE_IOSSIOSPEED true
+
 #define SOF_CHAR 0xf0   // start of frame
 #define EOF_CHAR 0xf1   // end of frame
 #define ESCAPE_CHAR 0xf2
@@ -90,6 +92,7 @@ typedef enum
     SET_SLOT,
     SET_BW,
     SET_PROTOCOL,
+    GET_TRAFFIC_STATS,
 } serial_cmds_t;
 
 typedef enum

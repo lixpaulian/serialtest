@@ -30,6 +30,8 @@
 #include <string.h>
 #include <termios.h>
 #include <sys/time.h>
+#include <sys/ioctl.h>
+#include <IOKit/serial/ioss.h>
 
 #include "utils.h"
 #include "frame-parser.h"
@@ -216,7 +218,7 @@ send_frames (void *p)
 {
     /* note: the frame is 90 bytes long + 2 bytes CRC. This is close to the maximum permissible
      for a 3.5 ms frame at 250 Kbps OQPSK (e.g. ZigBee) */
-#define LOCAL_BUFFER_SIZE 16 //90
+#define LOCAL_BUFFER_SIZE 24 // 90
     int fd = *(int *) p;
     uint8_t send_buffer[LOCAL_BUFFER_SIZE + 2];    // +2 for CRC
     uint8_t cc_buffer[20];
@@ -225,7 +227,9 @@ send_frames (void *p)
     bool send_one_time = false;
     frame_t *frame;
     uint8_t dest_address = 0;
+#if USE_IOSSIOSPEED == false
     struct termios options;
+#endif
     int count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
     int interval = 20; // ms
     uint8_t slot = 0;
@@ -331,17 +335,21 @@ send_frames (void *p)
                     break;
 
                 case SET_BAUD:
+#if USE_IOSSIOSPEED == false
                     tcgetattr (fd, &options);
                     cfsetispeed (&options, ipc.parameter0);
                     cfsetospeed (&options, ipc.parameter0);
+#endif
 
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x50;    // set baud rate
+#if USE_IOSSIOSPEED == false
                     if (ipc.parameter0 == 300)
                     {
                         // handle special case 300 baud which is aliased to 288000
                         ipc.parameter0 = 288000;
                     }
+#endif
                     cc_buffer[2] = ipc.parameter0 & 0xff;
                     cc_buffer[3] = (ipc.parameter0 >> 8) & 0xff;
                     cc_buffer[4] = (ipc.parameter0 >> 16) & 0xff;
@@ -350,10 +358,18 @@ send_frames (void *p)
                     {
                         perror("send command:");
                     }
+#if USE_IOSSIOSPEED == false
                     if (tcsetattr (fd, TCSAFLUSH, &options) < 0)
                     {
                         fprintf (stdout, "Failed to set new baudrate\n");
                     }
+#else
+                    speed_t speed = ipc.parameter0;
+                    if (ioctl(fd, IOSSIOSPEED, &speed) == -1 )
+                    {
+                       fprintf (stdout, "Failed to set new baudrate\n");
+                    }
+#endif
                     break;
                     
                 case SET_SLOT:
@@ -395,6 +411,15 @@ send_frames (void *p)
                         perror("send command:");
                     }
                     set_mode (ipc.parameter0 & 3);
+                    break;
+                    
+                case GET_TRAFFIC_STATS:
+                    cc_buffer[0] = 0xcc;
+                    cc_buffer[1] = 0x6A;    // set protocol
+                    if (send_command (fd, cc_buffer, 2, sizeof(cc_buffer)) < 0)
+                    {
+                        perror("send command:");
+                    }
                     break;
 
                 default:
