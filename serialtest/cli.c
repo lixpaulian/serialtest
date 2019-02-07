@@ -68,6 +68,9 @@ static int
 interval_cmd (int argc, char *argv[]);
 
 static int
+len_cmd (int argc, char *argv[]);
+
+static int
 set_cmd (int argc, char *argv[]);
 
 static int
@@ -90,6 +93,7 @@ const cmds_t rxcmds[] =
     { "dump", dump_rec, "Switch on/off dumping of received frames" },
     { "send", send_cmd, "Send various types of frames over the serial port" },
     { "interval", interval_cmd, "Set the interval between low latency frames" },
+    { "len", len_cmd, "Set the length of the low latency frames" },
     { "set", set_cmd, "Set various parameters" },
     { "stat", stats_cmd, "Show/clear statistics" },
     { "spy", spy_cmd, "Spy on the current radio channel" },
@@ -243,14 +247,22 @@ send_cmd (int argc, char *argv[])
     return OK;
 }
 
-// Command to send various types of frames over the serial port.
+// Command to request protocol statistics.
 static int
 spy_cmd (int argc, char *argv[])
 {
     pthread_mutex_lock (&send_serial_mutex);
-    ipc.cmd = GET_TRAFFIC_STATS;
+
+    if (argc > 0 && !strcasecmp (argv[0], "red"))
+    {
+        ipc.cmd = GET_RED_TRAFFIC_STATS;
+    }
+    else
+    {
+        ipc.cmd = GET_TRAFFIC_STATS;
+    }
     pthread_mutex_unlock (&send_serial_mutex);
-    
+
     return OK;
 }
 
@@ -280,6 +292,34 @@ interval_cmd (int argc, char *argv[])
     
     return OK;
 }
+
+// Set the length of the low latency frames.
+static int
+len_cmd (int argc, char *argv[])
+{
+    if (argc > 0)
+    {
+        int value = atoi (argv[0]);
+        if (value > 0 && value <= 120)  // max 120 bytes payoad
+        {
+            pthread_mutex_lock (&send_serial_mutex);
+            ipc.cmd = LENGTH;
+            ipc.parameter0 = value;
+            pthread_mutex_unlock (&send_serial_mutex);
+        }
+        else
+        {
+            fprintf (stdout, "Invalid parameter, should be between 1 and 120 (bytes)\n");
+        }
+    }
+    else
+    {
+        fprintf (stdout, "Usage:\tlen <nn>\n");
+    }
+    
+    return OK;
+}
+
 
 // Command to set certain parameters.
 static int
