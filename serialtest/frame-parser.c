@@ -218,7 +218,8 @@ send_frames (void *p)
 {
     /* note: the frame is 90 bytes long + 2 bytes CRC. This is close to the maximum permissible
      for a 3.5 ms frame at 250 Kbps OQPSK (e.g. ZigBee) */
-#define LOCAL_BUFFER_SIZE 24 // 90
+#define LOCAL_BUFFER_SIZE 120
+    static int frame_size = 22;  // default
     int fd = *(int *) p;
     uint8_t send_buffer[LOCAL_BUFFER_SIZE + 2];    // +2 for CRC
     uint8_t cc_buffer[20];
@@ -230,8 +231,8 @@ send_frames (void *p)
 #if USE_IOSSIOSPEED == false
     struct termios options;
 #endif
-    int count = LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t);
-    int interval = 20; // ms
+    int count = frame_size - sizeof (frame_hdr_t);
+    static int interval = 20; // ms
     uint8_t slot = 0;
     
     // set cmd/data line to data (true)
@@ -254,7 +255,7 @@ send_frames (void *p)
                 case SEND_LOW_LATENCY_FRAMES:
                 case SEND_LOW_LATENCY_FRAMES_WITH_HEADER:
                     dest_address = ipc.address;
-                    count = LOCAL_BUFFER_SIZE;
+                    count = frame_size;
                     send_periodically = true;
                     slot = ipc.parameter0;
                     break;
@@ -267,7 +268,10 @@ send_frames (void *p)
                     interval = ipc.parameter0;
                     break;
                     
-                    
+                case LENGTH:
+                    frame_size = ipc.parameter0;
+                    break;
+
                 case SET_CHANNEL:
                     cc_buffer[0] = 0xcc;
                     cc_buffer[1] = 0x02;    // set/get channel
@@ -414,8 +418,9 @@ send_frames (void *p)
                     break;
                     
                 case GET_TRAFFIC_STATS:
+                case GET_RED_TRAFFIC_STATS:
                     cc_buffer[0] = 0xcc;
-                    cc_buffer[1] = 0x6A;    // set protocol
+                    cc_buffer[1] = (ipc.cmd == GET_TRAFFIC_STATS) ? 0x6A : 0x6B;    // get stats
                     if (send_command (fd, cc_buffer, 2, sizeof(cc_buffer)) < 0)
                     {
                         perror("send command:");
@@ -442,8 +447,8 @@ send_frames (void *p)
             {
                 frame->header.type = LOW_LATENCY;
                 frame->header.dest = dest_address;
-                memset (&frame->payload, 0x55, LOCAL_BUFFER_SIZE - sizeof (frame_hdr_t));
-                count = LOCAL_BUFFER_SIZE;
+                memset (&frame->payload, 0x55, frame_size - sizeof (frame_hdr_t));
+                count = frame_size;
                 frame->header.len = count;
             }
             

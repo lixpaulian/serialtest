@@ -81,6 +81,7 @@ typedef enum
     SEND_LOW_LATENCY_FRAMES_WITH_HEADER,
     STOP_LOW_LATENCY_FRAMES,
     INTERVAL,
+    LENGTH,
     SEND_FILE,
     SET_CHANNEL,
     SET_MASTER,
@@ -93,6 +94,7 @@ typedef enum
     SET_BW,
     SET_PROTOCOL,
     GET_TRAFFIC_STATS,
+    GET_RED_TRAFFIC_STATS,
 } serial_cmds_t;
 
 typedef enum
