@@ -2,7 +2,7 @@
 //  main.c
 //  serialtest
 //
-//  Copyright (c) 2017, 2018 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017 - 2021 Lix N. Paulian (lix@paulian.net)
 //  
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -100,7 +100,7 @@ main (int argc, char * argv[])
                 
             case 'h':
             default:
-                fprintf (stdout, "Usage: serialtest -D <tty>\n\tor sertest -l <usb_location_ID>\n");
+                fprintf (stdout, "Usage: serialtest -D <tty>\n\tor serialtest -l <usb_location_ID>\n");
                 fprintf (stdout, "\tother options: -b <baudrate>, -a <own_address>, -v, -h\n");
                 exit (EXIT_SUCCESS);
                 break;
@@ -163,6 +163,7 @@ main (int argc, char * argv[])
     {
         fprintf (stdout, "Failed to set erase character on stdin\n");
     }
+    set_serial_fd (fd);
     
     clear_stats (); // clear all statistic data
     
@@ -338,6 +339,15 @@ handle_serial_line (int fd, bool print)
                     offset = 0;
                 }
             }
+        }
+        else if (mode == PLAIN)
+        {
+            fprintf (stdout, "read %ld bytes, offset %ld\n", res, offset);
+            for (int i = 0; i < res; i++)
+            {
+                fprintf (stdout, "%02x ", (buff + offset)[i]);
+            }
+            fprintf (stdout, "\n");
         }
         return 0;
     }
