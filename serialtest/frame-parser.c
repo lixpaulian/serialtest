@@ -2,7 +2,7 @@
 //  frame-parser.c
 //  serialtest
 //
-//  Copyright (c) 2017 - 2019 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017 - 2021 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -260,6 +260,10 @@ send_frames (void *p)
                     slot = ipc.parameter0;
                     break;
                     
+                case SEND_PLAIN_FRAME:
+                    write (fd, ipc.text, ipc.parameter0);
+                    break;
+                    
                 case STOP_LOW_LATENCY_FRAMES:
                     send_periodically = false;
                     break;
@@ -414,7 +418,7 @@ send_frames (void *p)
                     {
                         perror("send command:");
                     }
-                    set_mode (ipc.parameter0 & 3);
+                    set_mode (ipc.parameter0);
                     break;
                     
                 case GET_TRAFFIC_STATS:
