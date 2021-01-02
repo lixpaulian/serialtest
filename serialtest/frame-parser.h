@@ -2,7 +2,7 @@
 //  frame-parser.h
 //  serialtest
 //
-//  Copyright (c) 2017 - 2019 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017 - 2021 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -72,6 +72,7 @@ typedef struct
     uint32_t parameter0;
     uint32_t parameter1;
     uint32_t parameter2;
+    char* text;
 } ipc_t;
 
 typedef enum
@@ -79,6 +80,7 @@ typedef enum
     NOP,
     SEND_LOW_LATENCY_FRAMES,
     SEND_LOW_LATENCY_FRAMES_WITH_HEADER,
+    SEND_PLAIN_FRAME,
     STOP_LOW_LATENCY_FRAMES,
     INTERVAL,
     LENGTH,
