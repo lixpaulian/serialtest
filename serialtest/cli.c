@@ -2,7 +2,7 @@
 //  cli.c
 //  serialtest
 //
-//  Copyright (c) 2017 - 2019 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017 - 2021 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/termios.h>
 
 #include "utils.h"
 #include "frame-parser.h"
@@ -71,6 +72,9 @@ static int
 len_cmd (int argc, char *argv[]);
 
 static int
+ser_cfg (int argc, char *argv[]);
+
+static int
 set_cmd (int argc, char *argv[]);
 
 static int
@@ -97,6 +101,7 @@ const cmds_t rxcmds[] =
     { "set", set_cmd, "Set various parameters" },
     { "stat", stats_cmd, "Show/clear statistics" },
     { "spy", spy_cmd, "Spy on the current radio channel" },
+    { "sercfg", ser_cfg, "Configure the serial port" },
     { "quit", quit_cmd, "Quit program" },
     { "exit", quit_cmd, "Exit program" },
     { "help", help, "Show this help; for individual command help, use <command> -h" },
@@ -205,6 +210,9 @@ dump_rec (int argc, char *argv[])
 static int
 send_cmd (int argc, char *argv[])
 {
+    static char tmp_buff[256];
+    char *p;
+    
     if (argc > 0)
     {
         if (!strcasecmp (argv[0], "off"))
@@ -229,6 +237,49 @@ send_cmd (int argc, char *argv[])
             ipc.address = atoi (argv[1]);
             ipc.cmd = SEND_LOW_LATENCY_FRAMES_WITH_HEADER;
             ipc.parameter0 = atoi (argv[2]);
+            pthread_mutex_unlock (&send_serial_mutex);
+        }
+        else if (!strcasecmp (argv[0], "plain") && (argc > 1))
+        {
+            // send a plain frame (a text)
+            int cnt = 0;
+            for (p = argv[1]; *p; p++)
+            {
+                if (cnt > sizeof (tmp_buff))
+                {
+                    break;
+                }
+                if (*p != '\\')
+                {
+                    tmp_buff[cnt++] = *p;
+                }
+                else
+                {
+                    p++;
+                    switch (*p)
+                    {
+                        case 'r':
+                            tmp_buff[cnt++] = 0xd;
+                            break;
+                            
+                        case 'n':
+                            tmp_buff[cnt++] = 0xa;
+                            break;
+                            
+                        case '\\':
+                            tmp_buff[cnt++] = '\\';
+                            break;
+
+                        default:
+                            tmp_buff[cnt++] = *p;
+                            break;
+                    }
+                }
+            }
+            pthread_mutex_lock (&send_serial_mutex);
+            ipc.text = tmp_buff;
+            ipc.parameter0 = cnt;
+            ipc.cmd =  SEND_PLAIN_FRAME;
             pthread_mutex_unlock (&send_serial_mutex);
         }
         else
@@ -320,6 +371,119 @@ len_cmd (int argc, char *argv[])
     return OK;
 }
 
+// Configure serial port parameters.
+static int
+ser_cfg (int argc, char *argv[])
+{
+    struct termios options;
+    int fd = get_serial_fd();
+    
+    if (argc > 0)
+    {
+        tcgetattr (fd, &options);
+        
+        // canonical mode
+        if (!strcasecmp (argv[0], "icanon"))
+        {
+            options.c_lflag |= ICANON;
+        }
+        else if (!strcasecmp (argv[0], "-icanon"))
+        {
+            options.c_lflag &= ~ICANON;
+        }
+        
+        // echo
+        else if (!strcasecmp (argv[0], "echo"))
+        {
+            options.c_lflag |= ECHO;
+        }
+        else if (!strcasecmp (argv[0], "-echo"))
+        {
+            options.c_lflag &= ~ECHO;
+        }
+
+        // map NL to CR
+        else if (!strcasecmp (argv[0], "inlcr"))
+        {
+            options.c_iflag |= INLCR;
+        }
+        else if (!strcasecmp (argv[0], "-inlcr"))
+        {
+            options.c_iflag &= ~INLCR;
+        }
+
+        // map CR to NL
+        else if (!strcasecmp (argv[0], "icrnl"))
+        {
+            options.c_iflag |= ICRNL;
+        }
+        else if (!strcasecmp (argv[0], "-icrnl"))
+        {
+            options.c_iflag &= ~ICRNL;
+        }
+
+        // ignore CR
+        else if (!strcasecmp (argv[0], "igncr"))
+        {
+            options.c_iflag |= IGNCR;
+        }
+        else if (!strcasecmp (argv[0], "-igncr"))
+        {
+            options.c_iflag &= ~IGNCR;
+        }
+
+        // postprocess output
+        else if (!strcasecmp (argv[0], "opost"))
+        {
+            options.c_oflag |= OPOST;
+        }
+        else if (!strcasecmp (argv[0], "-opost"))
+        {
+            options.c_oflag &= ~OPOST;
+        }
+
+        // map nl to cr/nl
+        else if (!strcasecmp (argv[0], "onlcr"))
+        {
+            options.c_oflag |= ONLCR;
+        }
+        else if (!strcasecmp (argv[0], "-onlcr"))
+        {
+            options.c_oflag &= ~ONLCR;
+        }
+
+        // map cr to nl
+        else if (!strcasecmp (argv[0], "ocrnl"))
+        {
+            options.c_oflag |= OCRNL;
+        }
+        else if (!strcasecmp (argv[0], "-ocrnl"))
+        {
+            options.c_oflag &= ~OCRNL;
+        }
+
+        // nl performs cr function
+        else if (!strcasecmp (argv[0], "onlret"))
+        {
+            options.c_oflag |= ONLRET;
+        }
+        else if (!strcasecmp (argv[0], "-onlret"))
+        {
+            options.c_oflag &= ~ONLRET;
+        }
+
+        // apply change
+        if (tcsetattr (fd, TCSANOW, &options) < 0)
+        {
+            fprintf (stdout, "Failed to set the option on the serial port\n");
+        }
+    }
+    else
+    {
+        fprintf (stdout, "Not enough parameters\n");
+    }
+    return OK;
+}
 
 // Command to set certain parameters.
 static int
@@ -467,14 +631,14 @@ set_cmd (int argc, char *argv[])
             else if (!strcasecmp (argv[0], "proto"))
             {
                 int param = atoi (argv[1]);
-                if (param < 3)
+                if (param < 4)
                 {
                     ipc.parameter0 = param;
                     ipc.cmd = SET_PROTOCOL;
                 }
                 else
                 {
-                    fprintf (stdout, "Invalid parameter, must be 0 - white, 1 - white+, 2 - red+\n");
+                    fprintf (stdout, "Invalid parameter, must be 0 - white, 1 - white+, 2 - red+, 3 - plain\n");
                 }
             }
             else if (!strcasecmp (argv[0], "slot"))
