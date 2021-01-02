@@ -2,7 +2,7 @@
 //  utils.h
 //  serialtest
 //
-//  Copyright (c) 2017, 2018 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017, 2018, 2021 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,7 @@ typedef enum
     WHITE_RADIO = 0,
     WHITE_RADIO_PLUS,
     ROTFUNK_PLUS,
+    PLAIN,
 } op_mode_t;
 
 typedef struct __attribute__ ((packed))
@@ -57,6 +58,12 @@ set_mode (op_mode_t mode);
 
 op_mode_t
 get_mode (void);
+
+void
+set_serial_fd (int fd);
+
+int
+get_serial_fd (void);
 
 bool
 dump_frames (get_set_cmd_t operation, bool state);

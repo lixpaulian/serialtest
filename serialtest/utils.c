@@ -2,7 +2,7 @@
 //  utils.c
 //  serialtest
 //
-//  Copyright (c) 2017, 2018 Lix N. Paulian (lix@paulian.net)
+//  Copyright (c) 2017, 2018, 2021 Lix N. Paulian (lix@paulian.net)
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,8 @@
 
 #include "utils.h"
 
-static int g_mode = WHITE_RADIO;
+static int g_mode = PLAIN;
+static int serial_fd;
 
 void
 set_mode (op_mode_t mode)
@@ -46,6 +47,17 @@ op_mode_t
 get_mode (void)
 {
     return g_mode;
+}
+
+void
+set_serial_fd (int fd)
+{
+    serial_fd = fd;
+}
+
+int get_serial_fd (void)
+{
+    return serial_fd;
 }
 
 bool
