@@ -292,7 +292,8 @@ send_cmd (int argc, char *argv[])
         fprintf (stdout, "Usage:\tsend ll dest_addr\n"
                  "\tsend llh dest_addr slot_number\n"
                  "\tsend off\n"
-                 "\tdest_addr 0...255, slot_number 0...31\n");
+                 "\tsend plain\n"
+                 "\twhere dest_addr 0...255, slot_number 0...31\n");
     }
     
     return OK;
