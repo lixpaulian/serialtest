@@ -137,6 +137,7 @@ main (int argc, char * argv[])
         
         options.c_cc[VTIME] = 0;
         options.c_cc[VMIN] = 1;
+        options.c_cc[VERASE] = 8;
         if (tcsetattr (fd, TCSANOW, &options) < 0)
         {
             fprintf (stdout, "Failed to set new parameters on the serial port\n");
